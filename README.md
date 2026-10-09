@@ -1,5 +1,7 @@
 # Phase 1.6 운영형 파라메트릭 온실 생성기
 
+> 프론트엔드 개발자: API·3D 모델·채널 매핑 규칙은 [frontend_api_contract.md](markdown/frontend_api_contract.md)를 보세요.
+
 `config/greenhouse.json → Blender scene → greenhouse.blend + greenhouse.glb + generation_report.json`
 
 기준 문서는 [Phase 1.6 구현 명세](reference/greenhouse_phase1_6_visual_refinement_spec.md)다. [Phase 1.5 명세](markdown/greenhouse_phase1_5_operational_3d_spec.md)의 자산·제어 계약도 유지한다. [Phase 1 명세](markdown/greenhouse_phase1_codex_implementation_spec.md)의 입력 파이프라인, 이름, 기존 부모 관계, 제어 semantics와 acceptance를 유지한다. 입력은 사람이 수정하는 JSON이며 실행 중 PDF를 읽지 않는다. 기본 모델은 8m × 97.5m, 4연동(총폭 32m)이다. 좌표는 X=길이, Y=폭, Z=높이이고 원점은 footprint 중앙 바닥이다. 1 Blender Unit = 1m다.

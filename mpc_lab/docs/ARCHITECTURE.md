@@ -291,6 +291,11 @@ MPCRecommendation:
   confidence:
 ```
 
+HTTP form for the dashboard (2026-10-09): `GET /api/mpc/recommendation/`, currently a MOCK in
+`digital_twin/mpc_mock.py`; field names there follow `VARIABLE_NAMING.md` (`T_air_C`,
+`RH_air_percent`, `VPD_air_kPa`, `radiation_crop_W_m2`, `Q_vent_W_m2`) instead of `Tin_C` etc.
+Contract: `markdown/frontend_api_contract.md` §3.4.
+
 A `ValidationRecord` (BL §22.2, extended to three inputs) is stored per cycle in passive/shadow modes.
 
 ---

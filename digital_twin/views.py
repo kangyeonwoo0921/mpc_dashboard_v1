@@ -128,6 +128,25 @@ def solar_state(request):
     return response
 
 
+def mpc_recommendation(request):
+    """MOCK MPC recommendation in the agreed response shape (see digital_twin/mpc_mock.py).
+
+    ``?scenario=ok|degraded|unavailable`` lets the frontend exercise each status.
+    """
+
+    if request.method != "GET":
+        return HttpResponseNotAllowed(["GET"])
+    from .mpc_mock import SCENARIOS, build_payload
+
+    scenario = request.GET.get("scenario", "ok")
+    if scenario not in SCENARIOS:
+        return HttpResponseBadRequest(f"scenario must be one of {', '.join(SCENARIOS)}")
+    now = datetime.now(tz=ZoneInfo("Asia/Seoul")).replace(microsecond=0)
+    response = JsonResponse(build_payload(now, scenario, get_live_snapshot()), json_dumps_params={"ensure_ascii": False})
+    response["Cache-Control"] = "no-store"
+    return response
+
+
 def radiation_v1(request):
     """Spec-based v1 radiation model (physics.radiation_v1); physics code stays in that package.
 
