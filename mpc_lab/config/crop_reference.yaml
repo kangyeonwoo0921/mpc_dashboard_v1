@@ -1,0 +1,188 @@
+# Crop / climate references for the reference scheduler (MODEL_ASSUMPTIONS.md §4).
+# Design references, not hard constraints (BL-A §16). Unknown values stay null.
+# Record format: value, units, source_type, source_id, status, verified, calibration_required, notes.
+
+crop: cherry_tomato
+transplant_date:
+  value: "2026-09-22"
+  source_type: operator_report
+  source_id: operator report 2026-10-07
+  status: provisional
+  verified: false
+
+growth_stages: [establishment_vegetative, flowering_fruit_set, fruit_development_harvest]   # BL §4.2
+
+temperature:
+  mean24h_band:
+    value: [18.0, 20.0]
+    units: degC
+    source_type: field_guide_baseline
+    source_id: BL-A §17.1
+    status: field_guide_baseline
+    verified: false
+  october_mean24h_band:
+    value: [20.0, 21.0]
+    units: degC
+    source_type: field_guide_baseline
+    source_id: BL-A §17.2
+    status: field_guide_baseline
+    verified: false
+  winter_minimum:
+    value: 14.0
+    units: degC
+    source_type: field_guide_baseline
+    source_id: BL-A §17.3 (13-14 degC range; working value 14, C-3)
+    status: field_guide_baseline
+    verified: false
+    notes: soft constraint / warning, not a hard bound
+  winter_mean24h_min:
+    value: 18.0
+    units: degC
+    source_type: field_guide_baseline
+    source_id: BL-A §17.3 (>= 17-18 degC; working value 18, C-3)
+    status: field_guide_baseline
+    verified: false
+  T_ref_profile:                       # instantaneous T_ref(t) from 24 h-mean targets (OD-3)
+    value: null
+    units: degC
+    source_type: unknown
+    status: unknown
+    verified: false
+    notes: OD-3 open; scheduler must not invent a profile
+
+december_vent_opening:                 # T_vent_threshold for the baseline rule controller (C-12)
+  morning:
+    value: 19.0
+    units: degC
+    source_type: field_guide_baseline
+    source_id: BL-A §17.3
+    status: field_guide_baseline
+    verified: false
+    notes: may rise by up to 1 degC with strong solar
+  afternoon:
+    value: [26.0, 27.0]
+    units: degC
+    source_type: field_guide_baseline
+    source_id: BL-A §17.3
+    status: field_guide_baseline
+    verified: false
+    notes: may rise by up to 2 degC with accumulated temperature
+  early_evening:
+    value: 16.5
+    units: degC
+    source_type: field_guide_baseline
+    source_id: BL-A §17.3
+    status: field_guide_baseline
+    verified: false
+  night:
+    value: 16.0
+    units: degC
+    source_type: field_guide_baseline
+    source_id: BL-A §17.3
+    status: field_guide_baseline
+    verified: false
+    notes: may rise by up to 2 degC
+  phase_boundaries:                    # clock times separating morning/afternoon/evening/night
+    value: null
+    source_type: unknown
+    status: unknown
+    verified: false
+
+humidity:
+  RH_night_risk:
+    value: 90.0
+    units: percent
+    source_type: field_guide_baseline
+    source_id: BL-A §17.4
+    status: field_guide_baseline
+    verified: false
+    notes: soft constraint, risk when exceeded
+  Xi_day_min:
+    value: 8.0
+    units: g/kg
+    source_type: field_guide_baseline
+    source_id: BL-A §17.4 (December guide)
+    status: field_guide_baseline
+    verified: false
+    notes: below this, deploy diffuse screen and minimise vent (OD-2)
+  VPD_band:
+    value: [0.5, 1.2]
+    units: kPa
+    source_type: general_tomato_literature
+    source_id: BL §15.2
+    status: literature_baseline
+    verified: false
+  VPD_centre:
+    value: 0.8
+    units: kPa
+    source_type: general_tomato_literature
+    source_id: BL §15.2
+    status: literature_baseline
+    verified: false
+    notes: do_not_hardcode as a universal optimum
+
+light:
+  instantaneous_reference:
+    value: [600.0, 700.0]
+    units: W/m2
+    source_type: field_guide_baseline
+    source_id: BL-A §17.5 (C-13)
+    status: field_guide_baseline
+    verified: false
+    notes: guide measurement basis unknown; site sensor is global, above the cover outside (2026-10-07)
+  DLI_target:
+    value: [20.0, 30.0]
+    units: mol/m2/d
+    source_type: general_tomato_literature
+    source_id: BL-A §17.5
+    status: literature_baseline
+    verified: false
+    notes: do_not_hardcode as cherry-tomato optimum; DLI conversion blocked (C-14)
+  cumulative_light_1600J:
+    value: null
+    source_type: field_guide_baseline
+    source_id: BL-A §17.5
+    status: unknown
+    verified: false
+    notes: do not use, unit unverified
+
+screens:
+  shade_night_closure:
+    value: 80.0
+    units: percent_deployed
+    source_type: field_guide_baseline
+    source_id: BL §4.3-4.4
+    status: field_guide_baseline
+    verified: false
+    notes: "'when needed'; deployed 80 % = open 20 %"
+  shade_december_window:               # fallback / comparison only
+    value: {start_offset_from_sunset_h: -1.0, end_offset_from_sunrise_h: 0.5}
+    source_type: field_guide_baseline
+    source_id: BL-B §2.5
+    status: field_guide_baseline
+    verified: false
+    notes: aluminium screen mapped to shade screen (provisional mapping)
+  diffuse_night_window:                # OD-2 adopted 2026-10-04
+    value: {start_offset_from_sunset_h: -2.0, end_offset_from_sunrise_h: 2.0, T_out_below_C: 15.0}
+    source_type: field_guide_baseline
+    source_id: BL-A §17.3 December guide; OD-2
+    status: field_guide_baseline
+    verified: false
+
+reference_only:
+  rain_vent_max:
+    value: 5.0
+    units: percent
+    source_type: field_guide_baseline
+    source_id: BL §16.4 (C-4)
+    status: field_guide_baseline
+    verified: false
+    notes: baseline comparison only; not a safety limit
+  FAO_delayed_opening_radiation:
+    value: [50.0, 150.0]
+    units: W/m2
+    source_type: greenhouse_physics_literature
+    source_id: SRC-FAO2013, BL §10.1
+    status: literature_baseline
+    verified: false
+    notes: do_not_hardcode as threshold

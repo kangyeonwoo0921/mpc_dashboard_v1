@@ -1,0 +1,8 @@
+Django>=5.2,<5.3
+numpy>=2.0
+trimesh>=4.0
+rtree>=1.0
+# Embree ray backend; without it the light model falls back to slow pure-numpy rays.
+embreex>=2.17
+# Solar position for physics.radiation_v1 (NREL SPA, spec section 9).
+pvlib>=0.11

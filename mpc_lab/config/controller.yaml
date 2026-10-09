@@ -1,0 +1,77 @@
+# MPC controller configuration (DP §5, §23, §26; MODEL_ASSUMPTIONS A-2, A-3).
+# Horizons are engineering candidates, not literature. Weights have no final values (null).
+
+horizons:
+  sampling_minutes:
+    value: 5
+    units: min
+    source_type: engineering_candidate
+    source_id: DP §23 / BL-D
+    status: provisional
+    verified: false
+  prediction_horizon_minutes:
+    value: 60
+    units: min
+    source_type: engineering_candidate
+    source_id: DP §23 / BL-D
+    status: provisional
+    verified: false
+  control_horizon_minutes:
+    value: 20
+    units: min
+    source_type: engineering_candidate
+    source_id: DP §23 / BL-D
+    status: provisional
+    verified: false
+
+weights:                               # DP §5; C-7 three movement weights
+  w_T:   {value: null, source_type: unknown, status: unknown, verified: false}
+  w_H:   {value: null, source_type: unknown, status: unknown, verified: false}
+  w_L:   {value: null, source_type: unknown, status: unknown, verified: false}
+  w_Q:   {value: null, source_type: unknown, status: unknown, verified: false}
+  w_DLI: {value: null, source_type: unknown, status: unknown, verified: false, notes: DLI blocked (C-14)}
+  w_v:   {value: null, source_type: unknown, status: unknown, verified: false}
+  w_d:   {value: null, source_type: unknown, status: unknown, verified: false}
+  w_s:   {value: null, source_type: unknown, status: unknown, verified: false}
+
+enable_diffuse_screen_control:
+  value: true
+  source_type: project_decision
+  source_id: DP §12
+  status: provisional
+  verified: false
+
+roof_vent_command:                     # OD-1
+  value: common
+  source_type: project_decision
+  source_id: OD-1 (2026-10-04)
+  status: provisional
+  verified: false
+  notes: one u_vent applied to both left/right channels
+
+numerical_integration:                 # docs/TIME_DISCRETIZATION.md; replaces the former forward_euler entry
+  method:
+    value: radau
+    source_type: project_decision
+    source_id: TIME_DISCRETIZATION.md §2 (adaptive implicit Radau IIA; rk4 available for MPC formulations)
+    status: provisional
+    verified: false
+  control_hold:
+    value: zero_order_hold
+    source_type: project_decision
+    source_id: TIME_DISCRETIZATION.md §3
+    status: provisional
+    verified: false
+  disturbance_hold:
+    value: zero_order_hold
+    source_type: project_decision
+    source_id: TIME_DISCRETIZATION.md §3 (linear_interpolation available as option)
+    status: provisional
+    verified: false
+  rtol:        {value: null, units: "-", source_type: unknown, status: unknown, verified: false, notes: radau; to be set against sensor resolution / required accuracy}
+  atol_T_air:  {value: null, units: K, source_type: unknown, status: unknown, verified: false, notes: radau; to be set against temperature sensor resolution}
+  atol_VP_air: {value: null, units: Pa, source_type: unknown, status: unknown, verified: false, notes: radau; to be set against RH sensor resolution converted by PSY-02}
+  rk4_n_substeps: {value: null, units: "-", source_type: unknown, status: unknown, verified: false, notes: rk4 only; choose from stability_diagnostic with calibrated parameters}
+
+solver:
+  name: {value: null, source_type: unknown, status: unknown, verified: false, notes: chosen in Phase 2.6}

@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "greenhouse-mpc"
+version = "0.0.1"
+description = "Standalone recommendation-only greenhouse MPC prototype (roof vent + diffuse screen + shade screen)"
+requires-python = ">=3.11"
+dependencies = ["PyYAML>=6.0", "numpy>=1.24", "scipy>=1.10"]
+
+[tool.setuptools.packages.find]
+where = ["src"]

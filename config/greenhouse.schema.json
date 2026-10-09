@@ -1,0 +1,889 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Phase 1 / 1.5 / 1.6 greenhouse configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "metadata",
+    "greenhouse",
+    "structure",
+    "cover",
+    "roof_vents",
+    "shade_screen",
+    "diffuse_screen",
+    "crop_beds",
+    "ground",
+    "render",
+    "export"
+  ],
+  "$defs": {
+    "positive": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "nonnegative": {
+      "type": "number",
+      "minimum": 0
+    },
+    "fraction": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "percent": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "height": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value",
+        "verified",
+        "note"
+      ],
+      "properties": {
+        "value": {
+          "$ref": "#/$defs/positive"
+        },
+        "verified": {
+          "type": "boolean"
+        },
+        "note": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        }
+      }
+    },
+    "column": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "width",
+        "depth"
+      ],
+      "properties": {
+        "width": {
+          "$ref": "#/$defs/positive"
+        },
+        "depth": {
+          "$ref": "#/$defs/positive"
+        }
+      }
+    },
+    "screen": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "enabled",
+        "height",
+        "opening_percent",
+        "visual_opacity"
+      ],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "height": {
+          "$ref": "#/$defs/positive"
+        },
+        "opening_percent": {
+          "$ref": "#/$defs/percent"
+        },
+        "visual_opacity": {
+          "$ref": "#/$defs/fraction"
+        },
+        "transmittance_visual": {
+          "$ref": "#/$defs/fraction"
+        },
+        "drive_enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "travel": {
+          "type": "string",
+          "enum": [
+            "along_length",
+            "across_span"
+          ]
+        },
+        "gather_side": {
+          "type": "string",
+          "enum": [
+            "negative_y",
+            "positive_y",
+            "both"
+          ]
+        }
+      }
+    }
+  },
+  "properties": {
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "project_name",
+        "source_drawing",
+        "unit",
+        "phase"
+      ],
+      "properties": {
+        "project_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_drawing": {
+          "type": "string",
+          "minLength": 1
+        },
+        "unit": {
+          "type": "string",
+          "const": "m"
+        },
+        "phase": {
+          "type": "number",
+          "enum": [
+            1,
+            1.5,
+            1.6
+          ]
+        },
+        "assumptions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "greenhouse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "span_count",
+        "span_width",
+        "length",
+        "eave_height",
+        "ridge_height",
+        "roof"
+      ],
+      "properties": {
+        "span_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "span_width": {
+          "$ref": "#/$defs/positive"
+        },
+        "length": {
+          "$ref": "#/$defs/positive"
+        },
+        "eave_height": {
+          "$ref": "#/$defs/height"
+        },
+        "ridge_height": {
+          "$ref": "#/$defs/height"
+        },
+        "span_start_offsets": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/nonnegative"
+          }
+        },
+        "span_start_offsets_source": {
+          "type": "string"
+        },
+        "roof": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "profile",
+            "segments_per_span"
+          ],
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "arched_multi_span"
+            },
+            "profile": {
+              "type": "string",
+              "enum": [
+                "bezier_arch",
+                "circular_pointed_arch"
+              ]
+            },
+            "arch_radius": {
+              "$ref": "#/$defs/positive"
+            },
+            "arch_source": {
+              "type": "string"
+            },
+            "segments_per_span": {
+              "type": "integer",
+              "minimum": 4,
+              "multipleOf": 2
+            }
+          }
+        }
+      }
+    },
+    "structure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "main_column_spacing",
+        "secondary_column_spacing",
+        "rafter_spacing",
+        "main_column",
+        "secondary_column",
+        "visual_frame_radius"
+      ],
+      "properties": {
+        "main_column_spacing": {
+          "$ref": "#/$defs/positive"
+        },
+        "secondary_column_spacing": {
+          "$ref": "#/$defs/positive"
+        },
+        "rafter_spacing": {
+          "$ref": "#/$defs/positive"
+        },
+        "main_column": {
+          "$ref": "#/$defs/column"
+        },
+        "secondary_column": {
+          "$ref": "#/$defs/column"
+        },
+        "visual_frame_radius": {
+          "$ref": "#/$defs/positive"
+        }
+      }
+    },
+    "cover": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "enabled",
+        "opacity",
+        "roughness"
+      ],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "opacity": {
+          "$ref": "#/$defs/fraction"
+        },
+        "roughness": {
+          "$ref": "#/$defs/fraction"
+        }
+      }
+    },
+    "roof_vents": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "enabled",
+        "mode",
+        "opening_percent"
+      ],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "one_visual_vent_per_span",
+            "paired_ridge_vents"
+          ]
+        },
+        "opening_percent": {
+          "$ref": "#/$defs/percent"
+        },
+        "max_open_angle_deg": {
+          "$ref": "#/$defs/nonnegative"
+        },
+        "max_open_angle_from_post_deg": {
+          "type": "number",
+          "exclusiveMinimum": 90,
+          "maximum": 180
+        },
+        "panel_length_ratio": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "default": 0.8
+        },
+        "panel_width_ratio": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 0.5,
+          "default": 0.15
+        },
+        "x_center_ratio": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "default": 0.5
+        },
+        "side": {
+          "type": "string",
+          "enum": [
+            "positive_y",
+            "negative_y",
+            "both"
+          ],
+          "default": "positive_y"
+        },
+        "end_clearance": {
+          "$ref": "#/$defs/nonnegative"
+        },
+        "source": {
+          "type": "string"
+        },
+        "assumption": {
+          "type": "string",
+          "default": "Representative visual panel; dimensions and placement are not verified from the drawing."
+        },
+        "mechanism_enabled": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "shade_screen": {
+      "$ref": "#/$defs/screen"
+    },
+    "diffuse_screen": {
+      "$ref": "#/$defs/screen"
+    },
+    "crop_beds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "enabled",
+        "rows_per_span",
+        "length_margin",
+        "width",
+        "height",
+        "z",
+        "show_plants"
+      ],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "rows_per_span": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "length_margin": {
+          "$ref": "#/$defs/nonnegative"
+        },
+        "width": {
+          "$ref": "#/$defs/positive"
+        },
+        "height": {
+          "$ref": "#/$defs/positive"
+        },
+        "z": {
+          "$ref": "#/$defs/nonnegative"
+        },
+        "show_plants": {
+          "type": "boolean",
+          "const": false
+        }
+      }
+    },
+    "ground": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "enabled",
+        "margin"
+      ],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "margin": {
+          "$ref": "#/$defs/nonnegative"
+        }
+      }
+    },
+    "render": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "add_camera",
+        "add_lights",
+        "preview_resolution_x",
+        "preview_resolution_y"
+      ],
+      "properties": {
+        "add_camera": {
+          "type": "boolean"
+        },
+        "add_lights": {
+          "type": "boolean"
+        },
+        "preview_resolution_x": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "preview_resolution_y": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "blend_path",
+        "glb_path",
+        "report_path",
+        "apply_modifiers"
+      ],
+      "properties": {
+        "blend_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "glb_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "report_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "apply_modifiers": {
+          "type": "boolean"
+        }
+      }
+    },
+    "crops": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "crop_type": {
+          "type": "string",
+          "const": "cherry_tomato",
+          "default": "cherry_tomato"
+        },
+        "plant_spacing": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "default": 0.45
+        },
+        "plant_height": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "default": 2.2
+        },
+        "max_visual_plants_per_bed": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 80
+        },
+        "instance_mode": {
+          "type": "string",
+          "const": "linked",
+          "default": "linked"
+        },
+        "tomato_clusters": {
+          "type": "boolean",
+          "default": true
+        },
+        "detail_level": {
+          "type": "string",
+          "enum": [
+            "low",
+            "medium"
+          ],
+          "default": "medium"
+        },
+        "lod": {
+          "type": "string",
+          "enum": [
+            "standard",
+            "dashboard"
+          ],
+          "default": "standard"
+        }
+      },
+      "required": [],
+      "default": {}
+    },
+    "fertigation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "show_tanks": {
+          "type": "boolean",
+          "default": true
+        },
+        "show_pumps": {
+          "type": "boolean",
+          "default": true
+        },
+        "show_filters": {
+          "type": "boolean",
+          "default": true
+        },
+        "show_blower": {
+          "type": "boolean",
+          "default": true
+        },
+        "show_control_panel": {
+          "type": "boolean",
+          "default": true
+        },
+        "show_supply_lines": {
+          "type": "boolean",
+          "default": true
+        },
+        "show_drain_lines": {
+          "type": "boolean",
+          "default": true
+        },
+        "asset_scale": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "default": 1.0
+        },
+        "placement": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "mode": {
+              "type": "string",
+              "enum": [
+                "end_service_strip",
+                "absolute"
+              ],
+              "default": "end_service_strip"
+            },
+            "x": {
+              "type": "number",
+              "default": 0.0
+            },
+            "y": {
+              "type": "number",
+              "default": 0.0
+            },
+            "z": {
+              "type": "number",
+              "minimum": 0,
+              "default": 0.0
+            },
+            "verified": {
+              "type": "boolean",
+              "const": false,
+              "default": false
+            },
+            "note": {
+              "type": "string",
+              "minLength": 1,
+              "default": "Provisional placement; exact equipment coordinates are not verified."
+            }
+          },
+          "required": [],
+          "default": {}
+        }
+      },
+      "required": [],
+      "default": {}
+    },
+    "sensors": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "verified_positions": {
+          "type": "boolean",
+          "const": false,
+          "default": false
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^[A-Z][A-Z0-9_]*$"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "temperature_rh",
+                  "solar_radiation",
+                  "co2_optional",
+                  "outside_weather_optional"
+                ]
+              },
+              "position": {
+                "type": "array",
+                "minItems": 3,
+                "maxItems": 3,
+                "items": {
+                  "type": "number"
+                }
+              },
+              "verified": {
+                "type": "boolean",
+                "const": false,
+                "default": false
+              },
+              "note": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "position",
+              "verified",
+              "note"
+            ]
+          },
+          "default": []
+        }
+      },
+      "required": [],
+      "default": {}
+    },
+    "side_curtains": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "opening_percent": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "default": 20
+        },
+        "bottom_height": {
+          "type": "number",
+          "minimum": 0,
+          "default": 0.15
+        },
+        "frame_clearance": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "default": 0.12
+        }
+      },
+      "required": [],
+      "default": {}
+    },
+    "scene_cleanup": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "remove_default_cube": {
+          "type": "boolean",
+          "default": false
+        },
+        "remove_default_camera": {
+          "type": "boolean",
+          "default": false
+        },
+        "remove_default_light": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "required": [],
+      "default": {}
+    },
+    "visualization": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cover_mode": {
+          "type": "string",
+          "enum": [
+            "opaque",
+            "transparent",
+            "hidden"
+          ],
+          "default": "transparent"
+        },
+        "cover_opacity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "interior_preview": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "required": [],
+      "default": {}
+    },
+    "sidewalls": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "fixed_lower_wall_height": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "default": 0.8
+        },
+        "material_opacity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "default": 0.28
+        }
+      }
+    },
+    "visual_refinement": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "properties": {
+        "clip_screens_to_interior": {
+          "type": "boolean",
+          "default": false
+        },
+        "compact_vent_mechanism": {
+          "type": "boolean",
+          "default": false
+        },
+        "service_zone_layout": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "preview": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "properties": {
+        "generate_refinement_views": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "orientation": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "properties": {
+        "front_axis_reference": {
+          "type": "string",
+          "const": "X1",
+          "default": "X1"
+        },
+        "rear_axis_reference": {
+          "type": "string",
+          "const": "X23",
+          "default": "X23"
+        },
+        "front_end": {
+          "type": "string",
+          "const": "negative_x",
+          "default": "negative_x"
+        },
+        "rear_end": {
+          "type": "string",
+          "const": "positive_x",
+          "default": "positive_x"
+        },
+        "longitudinal_axis": {
+          "type": "string",
+          "const": "X",
+          "default": "X"
+        },
+        "front_world_position_rule": {
+          "type": "string",
+          "const": "[-length/2, 0, 0]",
+          "default": "[-length/2, 0, 0]"
+        },
+        "rear_world_position_rule": {
+          "type": "string",
+          "const": "[+length/2, 0, 0]",
+          "default": "[+length/2, 0, 0]"
+        }
+      }
+    },
+    "end_walls": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "properties": {
+        "door_center_y_ratio": {
+          "type": "number",
+          "default": 0.16666666666666666,
+          "minimum": -0.35,
+          "maximum": 0.35
+        },
+        "door_width": {
+          "type": "number",
+          "default": 3.0,
+          "exclusiveMinimum": 0
+        },
+        "door_height": {
+          "type": "number",
+          "default": 3.0,
+          "exclusiveMinimum": 0
+        },
+        "cladding_opacity": {
+          "type": "number",
+          "default": 0.95,
+          "minimum": 0.25,
+          "maximum": 1
+        },
+        "windbreak_opacity": {
+          "type": "number",
+          "default": 0.6,
+          "minimum": 0.25,
+          "maximum": 1
+        },
+        "verified": {
+          "type": "boolean",
+          "const": false,
+          "default": false
+        }
+      }
+    }
+  }
+}

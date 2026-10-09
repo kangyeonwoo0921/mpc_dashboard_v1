@@ -1,0 +1,15 @@
+{
+  "latitude_deg": 35.837,
+  "longitude_deg": 126.709,
+  "elevation_m": 3,
+  "timezone": "Asia/Seoul",
+  "greenhouse_long_axis_azimuth_deg": 284,
+  "source": "Lat/lon/elevation: user-provided site lookup (2026-09-30, method not recorded). Azimuth: field compass reading 2026-10-01, ridge 104 deg with X1 (entrance) at the east end, so +X (X1 -> X23) = 284 deg; true vs magnetic basis unconfirmed.",
+  "verified": false,
+  "provenance": {
+    "latitude_deg": "estimated",
+    "longitude_deg": "estimated",
+    "elevation_m": "estimated",
+    "greenhouse_long_axis_azimuth_deg": "measured"
+  }
+}

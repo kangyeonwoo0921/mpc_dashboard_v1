@@ -1,0 +1,109 @@
+{
+  "metadata": {
+    "project_name": "MS80_Gimje_Farmcubator",
+    "source_drawing": "MS80_김제 팜큐베이터_260921_204721.pdf",
+    "unit": "m",
+    "phase": 1,
+    "assumptions": [
+      "Rectangular equal-length spans replace the drawing's shorter spans and overhangs.",
+      "Beds and both screen layers are repeated in every span; partial layouts and the central cross aisle are simplified.",
+      "Eave 4.2 m and ridge 5.0 m follow the provisional specification; drawing page 6 appears to dimension the eave at 5.0 m.",
+      "Screens retain their specified full width and heights even where they intersect the provisional roof; no automatic clipping.",
+      "Screens retract toward negative X by scaling; no folded fabric or roller mechanics.",
+      "Trusses and gutters are visual connecting members using visual_frame_radius, not fabrication sections.",
+      "Bed z is the bottom elevation; row centers divide each span into equal-width cells.",
+      "Bed width, height, elevation and end margins are unverified visual defaults from the specification, not measured dimensions.",
+      "Quadratic Bezier roof curvature and the circular visual frame section are visualization approximations, not reconstructed construction profiles."
+    ]
+  },
+  "greenhouse": {
+    "span_count": 4,
+    "span_width": 8.0,
+    "length": 97.5,
+    "eave_height": {
+      "value": 4.2,
+      "verified": false,
+      "source": "front_elevation_page_6",
+      "note": "Phase 1 provisional interpretation"
+    },
+    "ridge_height": {
+      "value": 5.0,
+      "verified": false,
+      "source": "front_elevation_page_6",
+      "note": "Phase 1 provisional interpretation"
+    },
+    "roof": {
+      "type": "arched_multi_span",
+      "profile": "bezier_arch",
+      "segments_per_span": 24
+    }
+  },
+  "structure": {
+    "main_column_spacing": 4.5,
+    "secondary_column_spacing": 2.25,
+    "rafter_spacing": 1.125,
+    "main_column": {
+      "width": 0.125,
+      "depth": 0.075
+    },
+    "secondary_column": {
+      "width": 0.125,
+      "depth": 0.075
+    },
+    "visual_frame_radius": 0.035
+  },
+  "cover": {
+    "enabled": true,
+    "opacity": 0.22,
+    "roughness": 0.32
+  },
+  "roof_vents": {
+    "enabled": true,
+    "mode": "one_visual_vent_per_span",
+    "opening_percent": 20,
+    "max_open_angle_deg": 35,
+    "panel_length_ratio": 0.8,
+    "panel_width_ratio": 0.15,
+    "x_center_ratio": 0.5,
+    "side": "positive_y",
+    "assumption": "Representative visual panel; dimensions and placement are not verified from the drawing."
+  },
+  "shade_screen": {
+    "enabled": true,
+    "height": 4.8,
+    "opening_percent": 30,
+    "visual_opacity": 0.36,
+    "transmittance_visual": 0.25
+  },
+  "diffuse_screen": {
+    "enabled": true,
+    "height": 4.55,
+    "opening_percent": 100,
+    "visual_opacity": 0.16
+  },
+  "crop_beds": {
+    "enabled": true,
+    "rows_per_span": 5,
+    "length_margin": 4.0,
+    "width": 0.55,
+    "height": 0.25,
+    "z": 0.55,
+    "show_plants": false
+  },
+  "ground": {
+    "enabled": true,
+    "margin": 5.0
+  },
+  "render": {
+    "add_camera": true,
+    "add_lights": true,
+    "preview_resolution_x": 1600,
+    "preview_resolution_y": 900
+  },
+  "export": {
+    "blend_path": "dist/greenhouse.blend",
+    "glb_path": "dist/greenhouse.glb",
+    "report_path": "dist/generation_report.json",
+    "apply_modifiers": true
+  }
+}

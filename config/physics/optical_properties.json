@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "roof_cover": {
+    "solar_transmittance_direct": {"value": 0.85, "unit": "fraction", "verified": false, "source": "Farm operator report 2026-09-30: single-layer PO film, 85% transmittance", "source_type": "operator_reported", "notes": "Treated as normal-incidence transmittance. Spectral basis (PAR vs solar), product name and film age are not reported. No inner roof curtain."},
+    "solar_transmittance_diffuse": {"value": null, "unit": "fraction", "verified": false, "source": null, "source_type": "unknown", "notes": "Not reported; to be derived from the direct value by an angular model."}
+  },
+  "shade_screen_1": {
+    "solar_transmittance_deployed": {"value": 0.90, "unit": "fraction", "verified": false, "source": "Farm operator report 2026-10-07: channel 차광커튼1 is a 10% 'Ultra' screen = the diffuse screen layer (4.55 m)", "source_type": "operator_reported", "notes": "1 - 0.10 shading. Product data, haze and spectral basis not reported."}
+  },
+  "shade_screen_2": {
+    "solar_transmittance_deployed": {"value": 0.30, "unit": "fraction", "verified": false, "source": "Farm operator report 2026-10-07: channel 차광커튼2 is a 70% aluminium screen = the shade screen layer (4.8 m), also the night thermal screen", "source_type": "operator_reported", "notes": "1 - 0.70 shading (drawing page 25 states 75%). Reflectance and spectral basis not reported."}
+  }
+}

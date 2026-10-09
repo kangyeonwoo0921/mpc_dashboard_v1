@@ -1,0 +1,29 @@
+# Instantiation of the Vanthoor Eq. 8.2 / 8.10 source terms for this site (equation baseline §3-4).
+# The equations are not rewritten: an inactive term is a device/submodel that is not instantiated.
+# state: active | inactive. Every term must be listed with a reason.
+
+temperature_balance_eq_8_2:
+  H_can_air:      {state: active,   reason: "canopy-air exchange expected relevant (baseline §3.1)"}
+  H_pad_air:      {state: inactive, reason: "pad/fan cooling not confirmed on site"}
+  H_mech_air:     {state: inactive, reason: "mechanical cooling not confirmed on site"}
+  H_pipe_air:     {state: inactive, reason: "heating pipe not confirmed; site has a boiler of unknown type (Q-9)"}
+  H_pas_air:      {state: inactive, reason: "passive energy buffer not confirmed on site"}
+  H_blow_air:     {state: inactive, reason: "direct air heater not confirmed; site has a boiler of unknown type (Q-9)"}
+  R_glob_sun_air: {state: active,   reason: "radiation-related heat input expected relevant (baseline §3.1)"}
+  H_air_flr:      {state: active,   reason: "air-floor exchange expected relevant (baseline §3.1)"}
+  H_air_th_scr:   {state: inactive, reason: "conditional: shade screen not yet validated as thermal screen (baseline §15)"}
+  H_air_out:      {state: active,   reason: "air-outside exchange by ventilation/leakage (baseline §3.1)"}
+  H_air_top:      {state: inactive, reason: "top compartment exists only with a deployed thermal screen; conditional (Q-10)"}
+  H_air_out_pad:  {state: inactive, reason: "pad/fan not confirmed on site"}
+  L_air_fog:      {state: inactive, reason: "fogging not confirmed on site"}
+
+moisture_balance_eq_8_10:
+  MV_can_air:     {state: active,   reason: "crop transpiration (baseline §4.1); Eq. 8.50 still missing (Q-6)"}
+  MV_pad_air:     {state: inactive, reason: "pad/fan not confirmed on site"}
+  MV_fog_air:     {state: inactive, reason: "fogging not confirmed on site"}
+  MV_blow_air:    {state: inactive, reason: "direct air heater not confirmed on site"}
+  MV_air_th_scr:  {state: inactive, reason: "conditional: only if applicable to the actual screen (baseline §4.1)"}
+  MV_air_top:     {state: inactive, reason: "top compartment conditional (Q-10)"}
+  MV_air_out:     {state: active,   reason: "moisture transport by ventilation (baseline §4.1)"}
+  MV_air_out_pad: {state: inactive, reason: "pad/fan not confirmed on site"}
+  MV_air_mech:    {state: inactive, reason: "mechanical cooling not confirmed on site"}

@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "grid": {"cell_size_m": 1.0, "reference_height_m": null},
+  "direct_radiation": {"enabled": true, "method": "ray_cast"},
+  "diffuse_radiation": {"enabled": true, "method": "isotropic_initial"},
+  "reflections": {"enabled": false},
+  "canopy_attenuation": {"enabled": false}
+}

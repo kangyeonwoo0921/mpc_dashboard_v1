@@ -1,0 +1,18 @@
+{
+  "site_id": "greenhouse_01",
+  "latitude_deg": 35.8370,
+  "longitude_deg": 126.7090,
+  "elevation_m": 3,
+  "timezone": "Asia/Seoul",
+  "orientation": {
+    "greenhouse_long_axis_azimuth_deg": 284,
+    "verified": false,
+    "source": "Field compass measurement reported 2026-10-01: ridge (long axis) bearing 104 deg from true north; X1 (entrance) is at the east end, so physics +X (X1 -> X23) points 104 + 180 = 284 deg. Measured with a compass: if the reading is magnetic rather than true, true bearing is about 8-9 deg less (+X about 275-276 deg); steel structure can also bias a compass. An earlier operator estimate was about 89 deg (due east-west).",
+    "source_type": "measured"
+  },
+  "provenance": {
+    "latitude_deg": {"verified": false, "source": "User-provided site lookup 2026-09-30; method not recorded, confirm the point falls on the stepped greenhouse footprint", "source_type": "operator_reported"},
+    "longitude_deg": {"verified": false, "source": "User-provided site lookup 2026-09-30; method not recorded, confirm the point falls on the stepped greenhouse footprint", "source_type": "operator_reported"},
+    "elevation_m": {"verified": false, "source": "User-provided site lookup 2026-09-30; ground elevation above mean sea level, method not recorded", "source_type": "operator_reported"}
+  }
+}

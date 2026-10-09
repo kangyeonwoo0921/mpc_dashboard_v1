@@ -1,0 +1,15 @@
+{
+  "grid_resolution_m": 1.0,
+  "direct_model": "ray_cast",
+  "diffuse_model": "isotropic",
+  "sky_view_factor_mode": "unity",
+  "ground_reflection": false,
+  "multi_reflection": false,
+  "canopy_attenuation": false,
+  "crop_reference_height_m": {
+    "value": 3.0,
+    "source": "Top of the 3D model's visual crop (bed z 0.55 + bed 0.25 + plant 2.2 m); not a measured canopy height.",
+    "provenance": "estimated",
+    "verified": false
+  }
+}

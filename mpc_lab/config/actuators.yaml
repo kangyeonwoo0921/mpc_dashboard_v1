@@ -1,0 +1,67 @@
+# Actuator definitions (DP §2.2, §15; CONTROL_LOGIC.md §2, §4).
+# Percent semantics: screens = opening % (100 = retracted); vent = opening %.
+
+roof_vent:
+  bounds: {value: [0, 100], units: percent, source_type: project_decision, source_id: DP §2.2, status: provisional, verified: false}
+  channels:
+    value: [천창 좌(L), 천창 우(R)]
+    source_type: measured
+    source_id: live_data/fixtures/growlink_live_sample.json
+    status: provisional
+    verified: false
+    notes: commanded together (OD-1)
+  minimum_dwell_time_s: {value: null, units: s, source_type: unknown, status: field_required, verified: false}
+  maximum_rate_percent_per_step: {value: null, units: percent, source_type: unknown, status: field_required, verified: false}
+  travel_time_full_s: {value: null, units: s, source_type: unknown, status: field_required, verified: false, notes: stop item}
+
+shade_screen:
+  bounds: {value: [0, 100], units: percent, source_type: project_decision, source_id: DP §2.2, status: provisional, verified: false}
+  channel:
+    value: 차광커튼2
+    source_type: operator_report
+    source_id: operator report 2026-10-07 (차광커튼2 = 70 % aluminium)
+    status: provisional
+    verified: false
+  material:
+    value: aluminium, 70 % shading
+    source_type: operator_report
+    source_id: operator report 2026-10-07 (drawing page 25 states 75 %)
+    status: provisional
+    verified: false
+  roles:
+    value: [daytime_shading, night_insulation]
+    source_type: project_decision
+    source_id: user instruction (shade by day, insulate at night)
+    status: provisional
+    verified: false
+  minimum_dwell_time_s: {value: null, units: s, source_type: unknown, status: field_required, verified: false}
+  maximum_rate_percent_per_step: {value: null, units: percent, source_type: unknown, status: field_required, verified: false}
+  travel_time_full_s: {value: null, units: s, source_type: unknown, status: field_required, verified: false, notes: stop item}
+
+diffuse_screen:
+  bounds: {value: [0, 100], units: percent, source_type: project_decision, source_id: DP §2.2, status: provisional, verified: false}
+  channel:
+    value: 차광커튼1
+    source_type: operator_report
+    source_id: operator report 2026-10-07 (차광커튼1 = 10 % 'Ultra')
+    status: provisional
+    verified: false
+  material:
+    value: "'Ultra' screen, 10 % shading"
+    source_type: operator_report
+    source_id: operator report 2026-10-07
+    status: provisional
+    verified: false
+  roles:
+    value: [light_diffusion, night_insulation_guide_window, day_humidity_retention]
+    source_type: project_decision
+    source_id: OD-2 (2026-10-04)
+    status: provisional
+    verified: false
+  minimum_dwell_time_s: {value: null, units: s, source_type: unknown, status: field_required, verified: false}
+  maximum_rate_percent_per_step: {value: null, units: percent, source_type: unknown, status: field_required, verified: false}
+  travel_time_full_s: {value: null, units: s, source_type: unknown, status: field_required, verified: false, notes: stop item}
+
+shared:
+  persistence_time_s: {value: null, units: s, source_type: unknown, status: unknown, verified: false, notes: Hahn 15 min do_not_hardcode}
+  night_humidity_crack_max_percent: {value: null, units: percent, source_type: unknown, status: unknown, verified: false, notes: Campen 2.5 % / DP 2.5 % do_not_hardcode}

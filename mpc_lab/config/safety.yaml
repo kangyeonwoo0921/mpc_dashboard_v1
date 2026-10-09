@@ -1,0 +1,45 @@
+# Supervisor safety rules (DP §25, BL §16.4; CONTROL_LOGIC.md §4). No fake values.
+
+rain:
+  vent_max_percent:
+    value: 0.0
+    units: percent
+    source_type: operator_report
+    source_id: "operator report 2026-10-07 (field rule - roof vents close when it rains)"
+    status: provisional
+    verified: false
+    notes: replaces the unknown; the 5 % field-guide value stays reference only (C-4)
+  policy_while_unknown:
+    value: vent_recommendation_unavailable
+    source_type: project_decision
+    source_id: OD-6 default (undecided)
+    status: provisional
+    verified: false
+
+wind:
+  maximum_safe_speed_m_s:
+    value: null
+    units: m/s
+    source_type: unknown
+    status: field_required
+    verified: false
+  direction_dependent_rule:
+    value: null
+    source_type: unknown
+    status: field_required
+    verified: false
+
+actions:                               # project decisions per DP §25 / C-5
+  actuator_fault:        {value: safe_state_from_field_controller, source_type: project_decision, source_id: DP §25, status: provisional, verified: false}
+  communication_failure: {value: recommendation_unavailable, source_type: project_decision, source_id: C-5, status: provisional, verified: false}
+  missing_sensor:        {value: do_not_optimize, source_type: project_decision, source_id: DP §25, status: provisional, verified: false}
+  manual_override:       {value: respect_field_state, source_type: project_decision, source_id: DP §25, status: provisional, verified: false}
+
+critical_sensors:                      # missing any → no recommendation (CONTROL_LOGIC.md §4)
+  value: [T_in_C, RH_in_percent, T_out_C, RH_out_percent, solar_global_W_m2, wind_speed_m_s,
+          wind_direction_deg, rain_state, roof_vent_percent, diffuse_screen_open_percent,
+          shade_screen_open_percent]
+  source_type: project_decision
+  source_id: DP §3, BL §23
+  status: provisional
+  verified: false

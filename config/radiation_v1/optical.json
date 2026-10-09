@@ -1,0 +1,29 @@
+{
+  "cover": {
+    "material": "PO film, single layer",
+    "direct_transmittance": 0.85,
+    "diffuse_transmittance": null,
+    "refractive_index": null,
+    "source": "Farm operator report 2026-09-30 (85% transmittance); basis (PAR/solar, incidence) not stated. No spec sheet.",
+    "provenance": "estimated",
+    "verified": false
+  },
+  "shade_screen_1": {
+    "direct_transmittance": 0.90,
+    "diffuse_transmittance": null,
+    "reflectance": null,
+    "absorptance": null,
+    "source": "Farm operator report 2026-10-07: channel 차광커튼1 = 10% 'Ultra' screen -> 1 - 0.10; it is the diffuse screen layer (4.55 m).",
+    "provenance": "estimated",
+    "verified": false
+  },
+  "shade_screen_2": {
+    "direct_transmittance": 0.30,
+    "diffuse_transmittance": null,
+    "reflectance": null,
+    "absorptance": null,
+    "source": "Farm operator report 2026-10-07: channel 차광커튼2 = 70% aluminium screen -> 1 - 0.70 (drawing page 25: 75%); it is the shade screen layer (4.8 m) and the night thermal screen.",
+    "provenance": "estimated",
+    "verified": false
+  }
+}

@@ -1,0 +1,152 @@
+# Greenhouse physical parameters (MODEL_ASSUMPTIONS.md §3, §5). Unknown = null, never zero.
+
+site:
+  latitude:
+    value: 35.837
+    units: deg
+    source_type: operator_report
+    source_id: user lookup (dashboard config/site.json)
+    status: provisional
+    verified: false
+  longitude:
+    value: 126.709
+    units: deg
+    source_type: operator_report
+    source_id: user lookup (dashboard config/site.json)
+    status: provisional
+    verified: false
+  elevation:
+    value: 3.0
+    units: m
+    source_type: operator_report
+    source_id: user lookup (dashboard config/site.json)
+    status: provisional
+    verified: false
+  ridge_azimuth_true_north:
+    value: 104.0
+    units: deg
+    source_type: operator_report
+    source_id: compass measurement (X1 entrance at east end)
+    status: provisional
+    verified: false
+  timezone:
+    value: Asia/Seoul
+    source_type: operator_report
+    status: provisional
+    verified: false
+  air_pressure:
+    value: null
+    units: Pa
+    source_type: unknown
+    status: unknown
+    verified: false
+    notes: G-6; P_atm for PSY-03 must be measured or explicitly configured (A-8); no fixed value
+
+geometry:                              # to be transcribed from the dashboard model with provenance
+  A_floor: {value: null, units: m2, source_type: unknown, status: unknown, verified: false}
+  A_cover: {value: null, units: m2, source_type: unknown, status: unknown, verified: false}
+  V_gh:    {value: null, units: m3, source_type: unknown, status: unknown, verified: false}
+
+cover:
+  material: {value: "PO film, single layer", source_type: operator_report, source_id: operator report 2026-09-30, status: provisional, verified: false}
+  thickness:
+    value: 0.00015
+    units: m
+    source_type: operator_report
+    source_id: operator report 2026-10-07 (0.15 mm)
+    status: provisional
+    verified: false
+    notes: candidate h_roof for Eq. 8.19 once the cover layer mapping and conductivity are known
+
+heating:
+  system:
+    value: hot_water_boiler
+    source_type: operator_report
+    source_id: operator report 2026-10-07
+    status: provisional
+    verified: false
+    notes: heat distribution (pipes vs. fan coil) not reported; decides H_PipeAir vs H_BlowAir (Q-9)
+
+thermal:
+  C_eff:   {value: null, units: J/K, source_type: unknown, status: unknown, verified: false}
+  U_cover: {value: null, units: W/m2/K, source_type: unknown, status: unknown, verified: false, notes: stop item; Bailey alpha/beta do_not_hardcode}
+  delta_shade:
+    value: null
+    source_type: greenhouse_physics_literature
+    source_id: SRC-BAILEY1988 (38 % / 60 % sensitivity only)
+    status: unknown
+    verified: false
+    notes: stop item
+  delta_diffuse: {value: null, source_type: unknown, status: unknown, verified: false, notes: A-6 / OD-2}
+  eta_solar: {value: null, source_type: unknown, status: unknown, verified: false, notes: G-5}
+
+radiation:
+  sensor_quantity:
+    value: global_shortwave
+    source_type: operator_report
+    source_id: OD-4 (2026-10-04)
+    status: provisional
+    verified: false
+  sensor_location:
+    value: above_cover_outside
+    source_type: operator_report
+    source_id: operator report 2026-10-07 (S01 rear end, mounted above the cover); supersedes OD-4 "screen level"
+    status: provisional
+    verified: false
+    notes: outside global radiation; exact mounting point and height not surveyed
+  # Physics inputs (equation baseline §14, §17, §21). Activate only with manufacturer specs or
+  # field measurements; no generic transmittance is inserted (user decision 2026-10-06).
+  shade_screen_optics:                 # Vanthoor Eq. 8.16 / 8.17 (and 8.39 / 8.41 if thermal role)
+    tau_PAR: {value: null, source_type: unknown, status: field_required, verified: false, notes: manufacturer_or_measurement}
+    rho_PAR: {value: null, source_type: unknown, status: field_required, verified: false, notes: manufacturer_or_measurement}
+    tau_NIR: {value: null, source_type: unknown, status: field_required, verified: false, notes: manufacturer_or_measurement}
+    rho_NIR: {value: null, source_type: unknown, status: field_required, verified: false, notes: manufacturer_or_measurement}
+    tau_FIR: {value: null, source_type: unknown, status: field_required, verified: false, notes: only if used as thermal screen}
+  diffuse_screen_optics:               # Cabrera (2009) Eq. 6-8 coefficients
+    tau_bb: {value: null, source_type: unknown, status: field_required, verified: false, notes: manufacturer_or_measurement}
+    tau_bd: {value: null, source_type: unknown, status: field_required, verified: false, notes: manufacturer_or_measurement}
+    tau_d:  {value: null, source_type: unknown, status: field_required, verified: false, notes: manufacturer_or_measurement}
+    partial_opening_relation: {value: null, source_type: unknown, status: unknown, verified: false, notes: DIFF-OPEN unresolved; do not invent}
+
+# Provisional / unverified metadata. NOT used by any physics calculation (user decision 2026-10-06).
+# Kept for reference until manufacturer specifications or field measurements replace them.
+unverified_reference_values:
+  cover_direct_transmittance:
+    value: 0.85
+    source_type: operator_report
+    source_id: dashboard config/radiation_v1 (2026-09-30), PO film, basis unstated
+    status: provisional
+    verified: false
+    notes: unverified; no cover-transmittance term in the equation baseline
+  shade_screen_transmittance:
+    value: 0.30
+    source_type: operator_report
+    source_id: operator report 2026-10-07 (차광커튼2, aluminium, 70 % shading; replaces 0.25 from 75 %)
+    status: provisional
+    verified: false
+    notes: unverified; waveband and measurement basis unknown; not for physics
+  diffuse_screen_transmittance:
+    value: 0.90
+    source_type: operator_report
+    source_id: operator report 2026-10-07 (차광커튼1, 'Ultra', 10 % shading; replaces 0.80 from 20 %)
+    status: provisional
+    verified: false
+    notes: unverified; direct/diffuse basis unknown; not for physics
+
+ventilation:
+  Cd:  {value: null, source_type: unknown, status: unknown, verified: false}
+  Cw:  {value: null, source_type: unknown, status: unknown, verified: false}
+  vent_percent_to_angle:
+    value: {percent_100_angle_from_ridge_post_deg: 110.0}
+    source_type: operator_report
+    source_id: operator report 2026-10-07 (100-120 deg between the vertical ridge post and the opened leaf; 110 chosen); supersedes 100 % = 90 deg
+    status: provisional
+    verified: false
+    notes: dashboard geometry converts this to about 40.5 deg leaf rotation from closed; percent-to-angle linearity unverified
+  A_eff_map: {value: null, units: m2, source_type: unknown, status: unknown, verified: false}
+  infiltration: {value: null, units: m3/s, source_type: unknown, status: unknown, verified: false, notes: stop item}
+  f_diffuse_airflow: {value: null, source_type: unknown, status: unknown, verified: false, notes: "SCREEN_003, must not be fixed at 1"}
+  f_shade_airflow:   {value: null, source_type: unknown, status: unknown, verified: false, notes: "SCREEN_003, must not be fixed at 1"}
+
+moisture:
+  E_crop_model: {value: null, source_type: unknown, status: unknown, verified: false, notes: OD-5 deferred until domain knowledge review}

@@ -1,0 +1,132 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Greenhouse Digital Twin</title>
+  <link rel="stylesheet" href="{{ css_viewer_url }}">
+  <link rel="stylesheet" href="{{ css_live_panel_url }}">
+</head>
+<body>
+  <main class="viewer-shell" id="digital-twin-viewer" data-model-url="{{ model_url }}">
+    <canvas id="greenhouse-canvas" aria-label="Interactive greenhouse 3D model"></canvas>
+
+    <header class="viewer-header">
+      <div class="viewer-brand">
+        <span class="viewer-mark" aria-hidden="true"></span>
+        <div><h1>Greenhouse Digital Twin</h1><p>Phase 1.8.1 · Spatial navigation</p></div>
+      </div>
+      <div class="header-status" aria-label="LIVE connection status">
+        <span class="status-badge status-badge--source" data-header-field="source">MOCK DATA</span>
+        <span class="status-badge" data-header-field="connection" data-status="disconnected">DISCONNECTED</span>
+        <span class="header-update">Updated <time data-header-field="lastUpdate">—</time></span>
+        <span class="safety-label">LOCAL · NO FIELD CONTROL</span>
+      </div>
+    </header>
+
+    <div class="viewer-message" id="viewer-message" role="status">Loading greenhouse model…</div>
+
+    <nav class="spatial-selector" aria-label="Greenhouse span selection">
+      <span>Greenhouse</span>
+      <div role="group" aria-label="Spatial context">
+        <button type="button" data-span-select="ALL" aria-pressed="true">ALL</button>
+        <button type="button" data-span-select="S01" aria-pressed="false">S1</button>
+        <button type="button" data-span-select="S02" aria-pressed="false">S2</button>
+        <button type="button" data-span-select="S03" aria-pressed="false">S3</button>
+        <button type="button" data-span-select="S04" aria-pressed="false">S4</button>
+      </div>
+    </nav>
+
+    <div class="live-panel-position">{% include "digital_twin/_live_panel.html" %}</div>
+
+    <section class="display-controls" aria-label="Scene display controls">
+      <div class="display-control-group">
+        <span>Layers</span>
+        <label><input type="checkbox" data-layer="cover" checked><b>Cover</b></label>
+        <label><input type="checkbox" data-layer="crops" checked><b>Crops</b></label>
+        <label><input type="checkbox" data-layer="equipment" checked><b>Equipment</b></label>
+        <label><input type="checkbox" data-layer="sensors" checked><b>Sensors</b></label>
+      </div>
+      <div class="display-control-group">
+        <span>Overlays</span>
+        <label><input type="checkbox" data-overlay="controlState"><b>Control State</b></label>
+        <label><input type="checkbox" data-overlay="labels" checked><b>Labels</b></label>
+      </div>
+      <div class="display-control-group">
+        <span>Sun</span>
+        <label><input type="checkbox" data-solar="sun" checked><b>Sun &amp; Shadow</b></label>
+        <label><input type="checkbox" data-solar="lightMap"><b>Light Map</b></label>
+      </div>
+      <div class="display-control-group solar-time">
+        <span>Time</span>
+        <input type="range" min="300" max="1260" step="10" value="720" data-solar-time aria-label="Time of day (clear-sky model)">
+        <button type="button" data-solar-now aria-pressed="true">Now</button>
+        <output data-solar-readout title="Modelled canopy light; visual aid, not validated">—</output>
+      </div>
+    </section>
+
+    <nav class="viewer-toolbar" aria-label="Camera and navigation controls">
+      <div class="view-presets" role="group" aria-label="Camera presets">
+        <button type="button" data-view-preset="overview" aria-pressed="true">Overview</button>
+        <button type="button" data-view-preset="front" aria-pressed="false">Front</button>
+        <button type="button" data-view-preset="rear" aria-pressed="false">Rear</button>
+        <button type="button" data-view-preset="roof" aria-pressed="false">Roof</button>
+        <button type="button" data-view-preset="interior" aria-pressed="false">Interior</button>
+        <button type="button" data-view-preset="equipment" aria-pressed="false">Equipment</button>
+        <button type="button" data-view-preset="control" aria-pressed="false">Control</button>
+      </div>
+      <div class="toolbar-actions">
+        <button type="button" id="reset-view">Reset Camera</button>
+        <button type="button" id="fit-selected">Fit Selected</button>
+        <button type="button" id="back-overview">Back to Overview</button>
+        <button type="button" id="fullscreen-toggle">Fullscreen</button>
+        <button type="button" id="developer-toggle" aria-expanded="false">Developer</button>
+      </div>
+    </nav>
+
+    <div class="object-tooltip" id="object-tooltip" role="tooltip" hidden></div>
+    <div class="selected-label" id="selected-label" hidden>
+      <strong data-label-title>—</strong><span data-label-value>—</span>
+    </div>
+
+    <aside class="developer-drawer" id="developer-drawer" aria-hidden="true" aria-label="Developer information" inert>
+      <header>
+        <div><span>Diagnostics</span><h2>Developer</h2></div>
+        <button type="button" class="icon-button" id="developer-close" aria-label="Close developer drawer">×</button>
+      </header>
+      <div class="developer-content">
+        <section><h3>Runtime</h3><dl>
+          <div><dt>GLB load</dt><dd data-dev-field="glbStatus">Loading</dd></div>
+          <div><dt>Scene nodes</dt><dd data-dev-field="nodeCount">—</dd></div>
+          <div><dt>Data source</dt><dd data-dev-field="source">—</dd></div>
+          <div><dt>Connection</dt><dd data-dev-field="connection">DISCONNECTED</dd></div>
+          <div><dt>Camera preset</dt><dd data-dev-field="cameraPreset">Overview</dd></div>
+          <div><dt>Selection level</dt><dd data-dev-field="selectionLevel">Greenhouse</dd></div>
+          <div><dt>Selected span</dt><dd data-dev-field="selectedSpan">—</dd></div>
+          <div><dt>Selected asset</dt><dd data-dev-field="selectedAsset">—</dd></div>
+          <div><dt>Last API success</dt><dd data-dev-field="lastSuccess">—</dd></div>
+        </dl></section>
+        <section><h3>Cached registry</h3><dl>
+          <div><dt>Spans</dt><dd data-dev-field="spans">—</dd></div>
+          <div><dt>Assets</dt><dd data-dev-field="assets">—</dd></div>
+          <div><dt>Roof vents</dt><dd data-dev-field="roofVents">—</dd></div>
+          <div><dt>Shade screens</dt><dd data-dev-field="shadeScreens">—</dd></div>
+          <div><dt>Diffuse screens</dt><dd data-dev-field="diffuseScreens">—</dd></div>
+          <div><dt>Side curtains</dt><dd data-dev-field="sideCurtains">—</dd></div>
+          <div><dt>Asset raycast targets</dt><dd data-dev-field="raycastTargets">—</dd></div>
+          <div><dt>Span raycast targets</dt><dd data-dev-field="spanTargets">—</dd></div>
+        </dl></section>
+        <section>
+          <h3>LIVE mappings</h3><div class="mapping-status" id="mapping-status">Waiting for GLB…</div>
+          <p class="developer-note">RoofVent L drives every +Y leaf (_01) and R every −Y leaf (_02); the L/R side is provisional. ShadeScreen 02 drives the diffuse layer. Vents open to 90° (operator report).</p>
+        </section>
+        <section><h3>Load detail</h3><p class="developer-note" data-dev-field="loadDetail">Loading greenhouse.glb…</p></section>
+      </div>
+    </aside>
+  </main>
+
+  <script type="importmap">{{ import_map|safe }}</script>
+  <script type="module" src="{{ viewer_module_url }}"></script>
+</body>
+</html>
