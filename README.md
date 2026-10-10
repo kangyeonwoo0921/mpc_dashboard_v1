@@ -1,6 +1,6 @@
 # Phase 1.6 운영형 파라메트릭 온실 생성기
 
-> 프론트엔드 개발자: API·3D 모델·채널 매핑 규칙은 [frontend_api_contract.md](markdown/frontend_api_contract.md)를 보세요.
+> 프론트엔드 개발자: 작업 범위·시작 방법은 [frontend_handoff.md](markdown/frontend_handoff.md), API·3D 모델·채널 매핑 규칙은 [frontend_api_contract.md](markdown/frontend_api_contract.md)를 보세요.
 
 `config/greenhouse.json → Blender scene → greenhouse.blend + greenhouse.glb + generation_report.json`
 
