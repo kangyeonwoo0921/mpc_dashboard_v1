@@ -20,6 +20,15 @@ STEP = pd.Timedelta(minutes=5)
 
 
 def build_samples(table, h, config):
+    """Training / evaluation samples: rows where kc_input(t) and kc(t+h) are valid."""
+    out, columns = feature_frame(table, h, config)
+    out = out[out.kc_lag_0.notna() & out.target_kc.notna()].copy()
+    return out, columns
+
+
+def feature_frame(table, h, config):
+    """Features (and target columns, NaN when unknown) for every issue bin of the table; used directly
+    for live forecasts, where the target is not known yet."""
     frame = table.set_index("timestamp") if "timestamp" in table.columns else table
     if not (frame.index.to_series().diff().dropna() == STEP).all():
         raise ValueError("kc table must be on a complete, regular 5-min grid")
@@ -54,7 +63,5 @@ def build_samples(table, h, config):
         target_time=frame.index + h * STEP,
         issue_day=day,
     )
-    available = out.kc_lag_0.notna() & out.target_kc.notna()
-    out = out[available].copy()
     out.index.name = "issue_time"
     return out, list(features.columns)

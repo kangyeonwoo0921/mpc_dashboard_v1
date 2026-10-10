@@ -139,3 +139,61 @@ evaluation:
     source_id: "error by target sun elevation (sensor angular response)"
     status: provisional
     verified: false
+
+# ---- operation: weekly retraining with candidate comparison (user decision 2026-10-10) ----
+# Policy choices were made after seeing the checkpoint and final tests; their effect must be checked on
+# data after 2026-10-09 (docs/GHI_FORECAST_OPERATION.md).
+operation:
+  candidates:
+    value:
+      - {name: xgb_expanding, training_window_days: null}
+    source_type: project_decision
+    source_id: "candidate models trained every week and compared on their live record; training_window_days null = all data so far. Start with the evaluated design only; new methods are added here as candidates"
+    status: provisional
+    verified: false
+  model_horizon_steps:
+    value: [1, 2, 3, 4, 5, 6]
+    units: step
+    source_type: project_decision
+    source_id: "5-30 min: positive RMSE skill against CC with a 95 % day-bootstrap interval above 0 over all 29 test days; 35-60 min always use the reference (no evidence of gain)"
+    status: provisional
+    verified: false
+  reference:
+    value: convex_combination
+    source_type: greenhouse_physics_literature
+    source_id: "Yang (2019); in operation mu and rho(h) are estimated from the training data available at the update (external statistics), not from the forecast period"
+    status: provisional
+    verified: false
+  retrain_interval_days:
+    value: 7
+    units: d
+    source_type: project_decision
+    source_id: "weekly, as evaluated"
+    status: provisional
+    verified: false
+  gate_window_days:
+    value: 14
+    units: d
+    source_type: project_decision
+    source_id: "a horizon uses a model only if, over the last 14 days of live (out-of-sample) forecasts, its RMSE is not above the reference's"
+    status: provisional
+    verified: false
+  gate_min_valid_days:
+    value: 5
+    units: d
+    source_type: project_decision
+    source_id: "fewer days with valid targets in the gate window: keep the previous choice"
+    status: provisional
+    verified: false
+  sanity_kc_range:
+    value: [0.0, 2.0]
+    source_type: project_decision
+    source_id: "a new model whose validation kc forecasts leave this range is not activated (observed kc max 1.59 at >= 20 deg)"
+    status: provisional
+    verified: false
+  sanity_max_validation_rmse_ratio:
+    value: 1.5
+    source_type: project_decision
+    source_id: "a new model is not activated if its validation kc RMSE exceeds the active model's RMSE on the same validation days by this factor at any horizon"
+    status: provisional
+    verified: false

@@ -24,6 +24,7 @@ Sources (read-only, `../markdown/`):
 | Clear-sky reference (forecast step 1) | `src/greenhouse_mpc/solar/`, `config/solar_reference.yaml`, `docs/CLEARSKY_REFERENCE.md` | done; clear-sky index kc done (5-min, sun elevation >= 20 deg, no cap) |
 | GHI forecast baselines (step 2) | `src/greenhouse_mpc/forecast/`, `docs/GHI_FORECAST_BASELINE.md` | done: persistence, climatology, convex combination (reference), 5-60 min; run `python -m greenhouse_mpc.forecast.baseline_pipeline` |
 | GHI forecast model (step 3) | `src/greenhouse_mpc/forecast/`, `config/ghi_forecast.yaml`, `docs/GHI_FORECAST_MODEL.md` | XGBoost, expanding weekly split; development, checkpoint and final (sealed) runs done: skill vs CC +0.02..+0.07 at 5-15 min, none at 60 min |
+| GHI forecast operation (step 4) | `src/greenhouse_mpc/forecast/operation.py`, `docs/GHI_FORECAST_OPERATION.md` | weekly update with gate and candidate comparison, live forecast; replay checked; not yet initialised |
 
 **Equation source of truth:** `docs/greenhouse_mpc_final_equation_baseline.md` (Vanthoor 2011 Ch. 8,
 Cabrera 2009, psychrometrics). It supersedes the equation content of `MODEL_ASSUMPTIONS.md` and the
