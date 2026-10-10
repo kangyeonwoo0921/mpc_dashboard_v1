@@ -1,0 +1,100 @@
+# Clear-sky reference (step 1 of the GHI forecasting chain; docs/CLEARSKY_REFERENCE.md).
+# Literature models chosen by the user (2026-10-10); implementation: pvlib. Every sub-choice is
+# explicit here instead of relying on library defaults. Site: config/greenhouse.yaml.
+
+solar_position:
+  value: nrel_spa
+  source_type: greenhouse_physics_literature
+  source_id: "Reda & Andreas (2004), Solar position algorithm for solar radiation applications, Solar Energy 76(5):577-589; pvlib method 'nrel_numpy'"
+  status: literature_baseline
+  verified: false
+  notes: apparent (refraction-corrected) zenith is used by the airmass and Ineichen steps
+
+clear_sky_model:
+  value: ineichen_perez
+  source_type: greenhouse_physics_literature
+  source_id: "Ineichen & Perez (2002), A new airmass independent formulation for the Linke turbidity coefficient, Solar Energy 73(3):151-157; pvlib clearsky.ineichen"
+  status: literature_baseline
+  verified: false
+
+perez_enhancement:
+  value: false
+  source_type: project_decision
+  source_id: "pvlib default; pvlib warns the enhancement can give spurious values near the horizon (pvlib issue #435)"
+  status: provisional
+  verified: false
+
+linke_turbidity:
+  value: pvlib_monthly_climatology
+  source_type: greenhouse_physics_literature
+  source_id: "Remund et al. (2003), Worldwide Linke turbidity information, ISES Solar World Congress; SoDa monthly climatology shipped with pvlib (lookup_linke_turbidity)"
+  status: literature_baseline
+  verified: false
+  notes: monthly values interpolated to the day (interp_turbidity = true); no site measurement
+
+airmass_model:
+  value: kastenyoung1989
+  source_type: greenhouse_physics_literature
+  source_id: "Kasten & Young (1989), Revised optical air mass tables and approximation formula, Applied Optics 28(22):4735-4738; pvlib atmosphere.get_relative_airmass"
+  status: literature_baseline
+  verified: false
+  notes: relative airmass from the apparent zenith, converted to absolute airmass with the pressure below
+
+# Inputs the chosen models require but the user's reference list does not name (reported separately).
+extraterrestrial_irradiance:
+  value: spencer_1971
+  source_type: greenhouse_physics_literature
+  source_id: "Spencer (1971), Fourier series representation of the position of the sun, Search 2(5):172; pvlib irradiance.get_extra_radiation default"
+  status: provisional
+  verified: false
+solar_constant:
+  value: 1366.1
+  units: W/m2
+  source_type: greenhouse_physics_literature
+  source_id: "pvlib get_extra_radiation default solar constant"
+  status: provisional
+  verified: false
+pressure:
+  value: standard_atmosphere_from_altitude
+  source_type: project_decision
+  source_id: "no site pressure measurement (G-6); pvlib atmosphere.alt2pres standard-atmosphere formula at the site altitude"
+  status: provisional
+  verified: false
+
+aggregation:
+  minute_sample_offset_s:
+    value: 30
+    units: s
+    source_type: project_decision
+    source_id: "1-min bin [t, t+60 s) is represented by its centre"
+    status: provisional
+    verified: false
+  five_min:
+    value: mean_of_minute_centres
+    source_type: project_decision
+    source_id: "matches the measured 5-min value, which is the mean of its 1-min values (outside pipeline)"
+    status: provisional
+    verified: false
+
+# Clear-sky index kc = GHI / GHI_clear on the 5-min grid (user decision 2026-10-10, option C).
+clear_sky_index:
+  min_sun_elevation_deg:
+    value: 20.0
+    units: deg
+    source_type: project_decision
+    source_id: "site data: below 20 deg the sensor / ERA5 ratio is 1.24-1.67 (non-cosine response, CLEARSKY_REFERENCE.md section 3). Literature (originals read): zenith < 85 deg filter (Yang 2019, Solar Energy 193:981-985; Yang et al. 2020, Solar Energy 210:20-37); zenith <= 83 deg because cosine errors rise sharply beyond, especially for photodiode sensors with a horizontal diffuser (Gueymard 2017, Solar Energy 153:755-765). 20 deg is stricter than both because of this sensor"
+    status: provisional
+    verified: false
+    notes: kc is not computed for 5-min bins whose centre sun elevation is below this value
+  upper_bound:
+    value: none
+    source_type: project_decision
+    source_id: "Gueymard (2017), Solar Energy 153:755-765 (original read): measured 1-min GHI reaches clearness index KT = GHI / extraterrestrial horizontal 1.30 (thermopile) and 1.37 (photodiode) through cloud enhancement. Kept bins here: kc max 1.59, KT max 0.935, so no physically implausible value remains; Yang et al. (2020): pairs are not trimmed because of large errors. No cap applied"
+    status: provisional
+    verified: false
+  ghi_statuses:
+    value: [observed]
+    source_type: project_decision
+    source_id: "only bins whose measured 5-min GHI is fully observed (outside pipeline status) give kc; interpolated, suspect, invalid and missing bins do not"
+    status: provisional
+    verified: false

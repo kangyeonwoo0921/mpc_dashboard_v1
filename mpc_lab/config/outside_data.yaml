@@ -1,0 +1,147 @@
+# Step 1A — outside data contract and QC rules (docs/OUTSIDE_DATA_PIPELINE.md).
+# Thresholds are provenance records (provenance.py): a null value disables that rule and is reported
+# as unresolved. No threshold here is a sensor specification; see each source_id.
+
+source:
+  raw_dir: data/ouside_data            # folder name as delivered (sic); raw files are read-only
+  file_glob: "outside_*.csv"
+  encoding: utf-8-sig
+  timestamp_format: "%Y-%m-%d %H:%M:%S"
+  timezone: Asia/Seoul                 # field timestamps are Korean local time
+  output_dir: data/processed/outside
+
+# Known raw row layouts. The header text is NOT trusted (rows of different layouts were exported under
+# one header). A row matches a layout when its field count equals the layout length AND the wind-
+# direction token ("<deg>° <compass>") sits at that layout's wind_dir position. Exactly one trailing
+# empty field is removed first (observed export anomaly). Any other shape is a schema anomaly and is
+# kept unparsed for review.
+layouts:
+  with_rh: [timestamp, solar_energy_cumulative, rh_out, t_out, wind_speed, wind_dir, ghi]
+  without_rh: [timestamp, solar_energy_cumulative, t_out, wind_speed, wind_dir, ghi]
+
+known_headers:
+  - [시각, 누적일사량, 외부습도, 외부온도, 외부풍속, 외부풍향, 일사센서]
+  - [시각, 누적일사량, 외부온도, 외부풍속, 외부풍향, 일사센서]
+
+# Canonical outside variables (MPC category: disturbance). physics_name links to
+# src/greenhouse_mpc/physics/variables.py.
+variables:
+  ghi:
+    raw_name: 일사센서
+    unit: W/m2
+    dtype: float64
+    category: disturbance
+    aggregation_5min: mean
+    validity_rule: ">= 0; > 0 impossible at night; constant > 0 in daylight flagged as freeze; 0 in daylight flagged"
+    missing_policy: no interpolation (cloud ramps)
+    source: Growlink outside export; global shortwave above the cover (operator report 2026-10-07)
+    physics_name: solar_radiation
+  t_out:
+    raw_name: 외부온도
+    unit: degC
+    dtype: float64
+    category: disturbance
+    aggregation_5min: mean
+    validity_rule: no physical bound configured; 0.0 only as part of the all-zero communication pattern
+    missing_policy: interpolation off unless configured
+    source: Growlink outside export
+    physics_name: T_out
+  rh_out:
+    raw_name: 외부습도
+    unit: "%"
+    dtype: float64
+    category: disturbance
+    aggregation_5min: mean
+    validity_rule: "0..100 (definition of relative humidity)"
+    missing_policy: absent from 2026-08-03 onward in the delivered exports; kept missing
+    source: Growlink outside export (only in the early with_rh layout)
+    physics_name: RH_out
+  wind_speed:
+    raw_name: 외부풍속
+    unit: null                         # unresolved: not stated in the export
+    dtype: float64
+    category: disturbance
+    aggregation_5min: mean
+    validity_rule: ">= 0"
+    missing_policy: interpolation off unless configured
+    source: Growlink outside export
+    physics_name: wind_speed
+  wind_dir:
+    raw_name: 외부풍향
+    unit: deg                          # degrees from the raw token "<deg>° <16-point compass>"
+    dtype: float64
+    category: disturbance
+    aggregation_5min: circular_mean
+    validity_rule: "0 <= deg < 360; 16-point resolution (22.5 deg steps, printed truncated)"
+    missing_policy: no interpolation
+    source: Growlink outside export
+    physics_name: wind_direction
+  solar_energy_cumulative:
+    raw_name: 누적일사량
+    unit: null                         # unresolved: not the instantaneous GHI; resets at irregular times
+    dtype: float64
+    category: disturbance_auxiliary
+    aggregation_5min: last
+    validity_rule: ">= 0; never averaged"
+    missing_policy: no interpolation
+    source: Growlink outside export
+    physics_name: null
+
+qc:
+  ranges:                              # [min, max]; null bound = not checked. Impossible values only.
+    ghi:        {value: [0.0, null], units: W/m2, source_type: project_decision, source_id: "irradiance is non-negative; sensor maximum unknown", status: provisional, verified: false}
+    t_out:      {value: [null, null], units: degC, source_type: project_decision, source_id: "no sensor range available", status: provisional, verified: false}
+    rh_out:     {value: [0.0, 100.0], units: "%", source_type: project_decision, source_id: "definition of relative humidity", status: provisional, verified: false}
+    wind_speed: {value: [0.0, null], source_type: project_decision, source_id: "speed is non-negative; unit and maximum unknown", status: provisional, verified: false}
+    wind_dir:   {value: [0.0, 360.0], units: deg, source_type: project_decision, source_id: "compass definition; 360 excluded", status: provisional, verified: false}
+    solar_energy_cumulative: {value: [0.0, null], source_type: project_decision, source_id: "cumulative quantity is non-negative", status: provisional, verified: false}
+  communication_error_all_zero:
+    value: true
+    source_type: project_decision
+    source_id: "raw analysis 2026-10-10: t_out, wind_speed, wind_dir and ghi are exactly 0 together in 4142 rows (2026-07-28..09-12, day and night); t_out == 0 never occurs otherwise"
+    status: provisional
+    verified: false
+    notes: rows matching the pattern are invalid for every variable
+  sun:
+    night_elevation_deg:
+      value: -6.0
+      units: deg
+      source_type: project_decision
+      source_id: "civil twilight boundary; GHI > 0 below it is treated as impossible"
+      status: provisional
+      verified: false
+    daylight_elevation_deg:
+      value: 5.0
+      units: deg
+      source_type: engineering_candidate
+      source_id: "GHI == 0 above this solar elevation is flagged (flag only); to be tuned"
+      status: provisional
+      verified: false
+  freeze_min_duration_minutes:         # identical consecutive values lasting at least this long -> flag only
+    ghi:
+      value: 60
+      units: min
+      source_type: engineering_candidate
+      source_id: "raw analysis 2026-10-10: 564 W/m2 held for up to 3291 min; daylight runs of 53-100 min also seen; only runs with GHI > 0 and the sun up count"
+      status: provisional
+      verified: false
+    t_out:      {value: null, units: min, source_type: unknown, status: unknown, verified: false, notes: rule off}
+    wind_speed: {value: null, units: min, source_type: unknown, status: unknown, verified: false, notes: "rule off (calm periods hold 0.0)"}
+  interpolation_max_gap_minutes:       # null = interpolation off (default)
+    ghi:        {value: null, units: min, source_type: unknown, status: unknown, verified: false, notes: not recommended (cloud ramps)}
+    t_out:      {value: null, units: min, source_type: unknown, status: unknown, verified: false}
+    rh_out:     {value: null, units: min, source_type: unknown, status: unknown, verified: false}
+    wind_speed: {value: null, units: min, source_type: unknown, status: unknown, verified: false}
+  resample:
+    min_coverage_5min:
+      value: null
+      source_type: unknown
+      status: unknown
+      verified: false
+      notes: coverage is always reported; a low-coverage flag is added only when this is set
+    aggregate_suspect:
+      value: false
+      source_type: project_decision
+      source_id: "flagged (suspect) minutes are excluded from 1-min/5-min means while observed data exist"
+      status: provisional
+      verified: false

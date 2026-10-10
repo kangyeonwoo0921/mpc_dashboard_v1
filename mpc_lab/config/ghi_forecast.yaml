@@ -1,0 +1,141 @@
+# GHI forecasting (docs/GHI_FORECAST_BASELINE.md). Only definitions from originals read are used:
+# Chu et al. (2021) iScience 24(10):103136; Alonso-Suarez et al. (2022) arXiv:2203.13819;
+# Yang (2019) Solar Energy 193:981-985; Yang et al. (2020) Solar Energy 210:20-37.
+
+time_step_min:
+  value: 5
+  units: min
+  source_type: project_decision
+  source_id: "5-min kc table (outside pipeline 5-min bins)"
+  status: provisional
+  verified: false
+
+horizon_steps:
+  value: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+  units: step
+  source_type: project_decision
+  source_id: "user decision 2026-10-10, option A: 5-60 min at 5-min steps. Intra-hour = horizon < 1 h (Chu et al. 2021); 5-min data, 15-75 min ahead in the CAISO RTED case of Yang (2019)"
+  status: provisional
+  verified: false
+
+reference:
+  value: convex_combination
+  source_type: greenhouse_physics_literature
+  source_id: "Yang (2019) Eq. 5 and 8; Yang et al. (2020) section 4.2 and recommendations: RMSE skill score against the optimal convex combination of single-valued internal climatology and h-step-ahead clear-sky persistence"
+  status: literature_baseline
+  verified: false
+  notes: "internal = estimated from the samples being verified; mean on the filtered (valid) kc, lag-h autocorrelation on the regular 5-min grid so the temporal spacing is preserved"
+
+supplementary_window_n:
+  value: [3, 6, 12]
+  units: step
+  source_type: project_decision
+  source_id: "Alonso-Suarez et al. (2022) smart persistence with varying n; Yang (2019) section 4 classes window averages as multiple-valued climatology, not persistence. Reported for comparison only"
+  status: provisional
+  verified: false
+
+# ---- out-of-sample evaluation of the XGBoost model (user decisions 2026-10-10, option C) ----
+split:
+  scheme:
+    value: expanding_weekly
+    source_type: project_decision
+    source_id: "expanding training window, one test period per week, retrained before each (operational setting of Alonso-Suarez et al. 2022: training with the data available at issue time); whole KST days only"
+    status: provisional
+    verified: false
+  first_test_start:
+    value: "2026-08-31"
+    source_type: project_decision
+    source_id: "user decision: first training window 2026-07-28..2026-08-30 (26 days with valid kc)"
+    status: provisional
+    verified: false
+  development_end:
+    value: "2026-09-27"
+    source_type: project_decision
+    source_id: "development test periods 2026-08-31..2026-09-27 (design decisions use only these)"
+    status: provisional
+    verified: false
+  checkpoint_end:
+    value: "2026-10-04"
+    source_type: project_decision
+    source_id: "checkpoint test 2026-09-28..2026-10-04: run once, design not changed after it (a change is logged and leaves only the final test)"
+    status: provisional
+    verified: false
+  final_end:
+    value: "2026-10-09"
+    source_type: project_decision
+    source_id: "final (sealed) test 2026-10-05..2026-10-09: run once after the design is fixed"
+    status: provisional
+    verified: false
+  fold_length_days:
+    value: 7
+    units: d
+    source_type: project_decision
+    source_id: "weekly retraining"
+    status: provisional
+    verified: false
+  min_test_days:
+    value: 3
+    units: d
+    source_type: project_decision
+    source_id: "a week with fewer days of valid kc is merged into the next week of the same role (2026-09-14 week: 2 days)"
+    status: provisional
+    verified: false
+  validation_days:
+    value: 7
+    units: d
+    source_type: project_decision
+    source_id: "last 7 calendar days of each training window are held out for early stopping only"
+    status: provisional
+    verified: false
+
+features:
+  kc_lags:
+    value: 12
+    units: step
+    source_type: project_decision
+    source_id: "kc_input(t-i), i = 0..11 = the last 60 min at 5-min resolution; lagged 30-60 min inputs at 1-5 min resolution are the most frequent intra-hour choice (Chu et al. 2021)"
+    status: provisional
+    verified: false
+  window_means:
+    value: [3, 6, 12]
+    units: step
+    source_type: project_decision
+    source_id: "means of the last n kc_input (Alonso-Suarez et al. 2022 window benchmark used as a feature)"
+    status: provisional
+    verified: false
+  sun_geometry:
+    value: [sun_elevation_issue, sun_elevation_target, sun_azimuth_target]
+    source_type: project_decision
+    source_id: "known in advance (deterministic); needed because this sensor's kc depends on sun elevation (CLEARSKY_REFERENCE.md section 3)"
+    status: provisional
+    verified: false
+
+model:
+  strategy:
+    value: direct_per_horizon
+    source_type: project_decision
+    source_id: "one model per horizon step; target kc(t+h), GHI forecast = kc forecast x clear-sky GHI (Yang 2019 section 3)"
+    status: provisional
+    verified: false
+  xgboost:
+    objective: {value: "reg:squarederror", source_type: project_decision, source_id: "squared error on kc", status: provisional, verified: false}
+    max_depth: {value: 4, source_type: project_decision, source_id: "fixed, not tuned (small data; no search)", status: provisional, verified: false}
+    learning_rate: {value: 0.05, source_type: project_decision, source_id: "fixed, not tuned", status: provisional, verified: false}
+    n_estimators: {value: 2000, source_type: project_decision, source_id: "upper bound; early stopping decides", status: provisional, verified: false}
+    early_stopping_rounds: {value: 50, source_type: project_decision, source_id: "on the validation days", status: provisional, verified: false}
+    subsample: {value: 0.8, source_type: project_decision, source_id: "fixed, not tuned", status: provisional, verified: false}
+    colsample_bytree: {value: 0.8, source_type: project_decision, source_id: "fixed, not tuned", status: provisional, verified: false}
+    min_child_weight: {value: 5, source_type: project_decision, source_id: "fixed, not tuned", status: provisional, verified: false}
+    reg_lambda: {value: 1.0, source_type: project_decision, source_id: "fixed, not tuned", status: provisional, verified: false}
+    tree_method: {value: hist, source_type: project_decision, source_id: "xgboost histogram method", status: provisional, verified: false}
+    random_state: {value: 0, source_type: project_decision, source_id: "reproducibility", status: provisional, verified: false}
+    n_jobs: {value: 1, source_type: project_decision, source_id: "reproducibility", status: provisional, verified: false}
+
+evaluation:
+  elevation_bands_deg:
+    value: [20, 30, 45, 60, 90]
+    units: deg
+    source_type: project_decision
+    source_id: "error by target sun elevation (sensor angular response)"
+    status: provisional
+    verified: false
