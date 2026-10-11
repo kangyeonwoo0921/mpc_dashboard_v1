@@ -1,0 +1,34 @@
+# Live operation on the laptop (docs/LIVE_OPERATION.md): every cycle the field collector's synced files are
+# processed (outside -> clear sky -> kc), the weekly forecast update runs when due, and the GHI forecast of
+# the last complete 5-min bin is written for the dashboard and the MPC.
+
+field_data_dir:
+  value: null
+  source_type: unknown
+  source_id: "output_dir of field_collector/config.json as synced to this laptop (folder containing outside/); set it here or pass --field-dir"
+  status: field_required
+  verified: false
+
+cycle_minutes:
+  value: 5
+  units: min
+  source_type: project_decision
+  source_id: "one forecast per 5-min bin (forecast time step)"
+  status: provisional
+  verified: false
+
+cycle_delay_s:
+  value: 120
+  units: s
+  source_type: project_decision
+  source_id: "run 2 min after a 5-min bin closes: collector reads at second 5 of each minute, the sync folder adds a delay"
+  status: provisional
+  verified: false
+
+max_data_age_min:
+  value: 15
+  units: min
+  source_type: project_decision
+  source_id: "no forecast when the newest processed observation is older than this (collector or sync stopped)"
+  status: provisional
+  verified: false

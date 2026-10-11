@@ -59,6 +59,18 @@ def live_snapshot(request):
     return response
 
 
+def ghi_forecast(request):
+    """GHI forecast (5-60 min) produced by mpc_lab's live runner; see live_data.forecast."""
+
+    if request.method != "GET":
+        return HttpResponseNotAllowed(["GET"])
+    from live_data.forecast import get_ghi_forecast
+
+    response = JsonResponse(get_ghi_forecast(), json_dumps_params={"ensure_ascii": False})
+    response["Cache-Control"] = "no-store"
+    return response
+
+
 def _rounded(values, digits):
     return [None if not math.isfinite(v) else round(v, digits) for v in values]
 

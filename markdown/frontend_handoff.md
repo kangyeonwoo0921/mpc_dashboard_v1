@@ -93,6 +93,7 @@ mpc_dashboard_v1/
 | `/api/digital-twin/radiation/v1/` | 태양 위치·궤적, 작물면 일조 격자 | 작동. 작물면 W/m²는 `null` |
 | `/api/digital-twin/solar/` | 초기 레퍼런스 모델 | 비교용. 새 화면은 radiation/v1 사용 |
 | `/api/mpc/recommendation/` | MPC 추천값·예측 궤적 | **mock** (`is_mock: true`). `?scenario=ok\|degraded\|unavailable` |
+| `/api/forecast/ghi/` | 5–60분 일사 예측 | 현장 데이터 연결 후 제공, 그 전에는 `status: unavailable` |
 
 필드별 의미와 예시 응답은 [frontend_api_contract.md](frontend_api_contract.md) 3절.
 
@@ -121,10 +122,10 @@ mpc_dashboard_v1/
 
 | 항목 | 현재 | 예정 |
 |---|---|---|
-| 실시간 데이터 | mock | 현장 Growlink 연결. **응답 형식 유지** |
+| 실시간 데이터 | mock (기본) | 현장 수집기 연결(`source: "field_collector"`). **응답 형식 유지** |
 | MPC 추천 | mock (형식 확정) | 실제 제어기 연결. 형식 유지, 바뀌면 `schema_version` 변경 |
 | 작물면 일사 W/m² | `null` | 직달·산란 분해 모델 결정 후 값 제공 |
-| 일사 예측(5–60분) | API 없음 | 연구 단계. 대시보드에 표시하게 되면 API·계약 문서에 추가 |
+| 일사 예측(5–60분) | `/api/forecast/ghi/` (데이터 연결 전 `unavailable`) | 현장 데이터 연결 후 5분마다 갱신 |
 | 천창 좌우 기준, 센서 위치, 광학값, 작물면 높이 | 잠정 | 현장 확인 후 확정 |
 
 ## 7. 문의

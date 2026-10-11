@@ -156,6 +156,36 @@ python -m venv .venv
 
 `unavailable`이면 `recommendation`, `trajectory`, `predicted`, `diagnostics`가 모두 `null`이다.
 
+### 3.5 `GET /api/forecast/ghi/` — 일사 예측 (5–60분)
+
+mpc_lab 실시간 실행기가 5분마다 만드는 외부 일사 예측. 값은 **현장 센서 기준**(센서 각도 보정 전) W/m².
+
+```json
+{
+  "schema_version": "ghi-forecast/0.1",
+  "generated_at": "2026-10-11T12:07:02+09:00",
+  "status": "ok",
+  "reason": null,
+  "issue_time": "2026-10-11T12:00:00+09:00",
+  "data_last_timestamp": "2026-10-11T12:05:00+09:00",
+  "horizons": [
+    {"h_steps": 1, "horizon_min": 5, "target_time": "2026-10-11T12:05:00+09:00",
+     "method": "xgb_expanding", "ghi_w_m2": 512.3, "kc": 0.71, "ghi_clear_w_m2": 721.6},
+    "… 12개 (5–60분)"
+  ]
+}
+```
+
+| 필드 | 의미 |
+|---|---|
+| `status` | `ok` / `unavailable`(밤, 태양고도 20° 미만, 데이터 끊김 등. `reason` 참고) / `stale`(예측이 10분 넘게 갱신 안 됨) / `error` |
+| `issue_time` | 예측 기준 5분 구간(시작 시각). 이 구간이 끝난 뒤 발행 |
+| `horizons[].method` | 그 예측 시간에 쓴 방법: `xgb_expanding`(모델) 또는 `convex_combination`(기준선) |
+| `horizons[].ghi_w_m2` | 예측 일사. 값이 없으면 `null` |
+| `horizons[].ghi_clear_w_m2` | 같은 시각 맑은 날 일사(참고선) |
+
+`status`가 `ok`가 아니면 `horizons`는 `null`이다(오래된 예측을 현재 값처럼 보여주지 않음).
+
 ## 4. 3D 모델 (GLB)
 
 - 파일: `digital_twin/static/digital_twin/models/greenhouse.glb` (glTF 2.0, Y-up, 1 unit = 1 m)
@@ -180,6 +210,7 @@ python -m venv .venv
 |---|---|
 | 실시간 데이터 | mock. 현장 Growlink 연결 예정 |
 | MPC 추천 | mock. 형식만 확정 |
+| 일사 예측 | 현장 데이터가 들어오기 시작하면 제공. 그 전에는 `unavailable` |
 | 작물면 일사 W/m² | 직달·산란 분해 모델 미정 → `null` |
 | 스크린·피복 광학값 | 현장 제보 기반 잠정값 |
 | 천창 % ↔ 각도 | 선형 가정, 최대각(기둥 기준 110°) 잠정 |
