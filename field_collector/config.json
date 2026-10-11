@@ -1,0 +1,9 @@
+{
+  "url": "http://127.0.0.1:8000/api/live",
+  "interval_s": 60,
+  "second_offset": 5,
+  "timeout_s": 10,
+  "retry_wait_s": 300,
+  "min_free_disk_gb": 5,
+  "output_dir": "C:\\GreenhouseCollector\\data"
+}

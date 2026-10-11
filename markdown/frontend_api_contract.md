@@ -29,7 +29,7 @@ python -m venv .venv
 | 메서드 | 모두 `GET`. 다른 메서드는 405 |
 | 천창 % | 0 = 닫힘, 100 = 최대 개방 |
 | **스크린 %** | **열림 %**: 100 = 완전히 걷힘(빛 통과), 0 = 완전히 침(전개). 전개율 = 1 − %/100 |
-| 데이터 출처 | 현재 실시간 값은 **mock**(`source: "mock_dynamic"`). 현장 Growlink 연결 전까지 사인파 가짜 데이터 |
+| 데이터 출처 | `source`: `mock_dynamic`(기본, 사인파 가짜 데이터) / `mock_static` / `field_collector`(현장 수집기의 실제 값, 약 1분 갱신). `mock`으로 시작하면 가짜 데이터 |
 | 잠정값 | `verified: false`, `provenance: "estimated"`는 확정값이 아님. 화면에 "잠정" 표시 권장 |
 
 ## 2. 채널 매핑 (현장 ↔ API ↔ 3D)
@@ -73,6 +73,7 @@ python -m venv .venv
 ```
 
 - `solar_w_m2`: 피복 위(외부) 전천일사 센서.
+- `source: "field_collector"`일 때 `timestamp`는 현장 수집 시각이다. 수집이 3분 넘게 끊기면 모든 값이 `null`, `connected: false`가 된다.
 - 외부 상대습도·대기압은 현장 센서가 없어 응답에 없다.
 - `wind_direction_text`는 현장 원문 문자열(각도+방위).
 
