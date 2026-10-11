@@ -25,6 +25,7 @@ import pandas as pd
 import xgboost as xgb
 
 from ..ingestion.outside_schema import MPC_LAB_DIR
+from ..paths import processed_dir
 from ..ingestion.versioning import file_sha256, git_state, library_versions, read_parquet_version
 from .baselines import internal_statistics
 from .config import load_forecast_config
@@ -33,8 +34,8 @@ from .metrics import mae, mbe, rmse, skill
 from .split import ROLES, day_of, make_folds, table_for_role
 
 PIPELINE_VERSION = "1.0"
-KC_FILE = MPC_LAB_DIR / "data" / "processed" / "clear_sky_index" / "kc_5min.parquet"
-RUNS_DIR = MPC_LAB_DIR / "data" / "processed" / "forecast_runs"
+KC_FILE = processed_dir() / "clear_sky_index" / "kc_5min.parquet"
+RUNS_DIR = processed_dir() / "forecast_runs"
 LOG_FILE = MPC_LAB_DIR / "records" / "forecast_run_log.jsonl"
 SEALED = ("checkpoint", "final")
 FORECASTS = ("xgboost", "persistence", "climatology", "convex_combination")

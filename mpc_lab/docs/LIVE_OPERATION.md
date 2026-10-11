@@ -6,28 +6,44 @@ field PC   dashboard GET /api/live ──(1/min, read-only)── field_collecto
 laptop     sync folder ─┬─ Django  LIVE_DATA_SOURCE=field_collector ─ /api/digital-twin/live/ (3D twin, MPC current)
                         └─ mpc_lab live_runner (every 5 min)
                              outside → clear sky → kc → weekly update (when due) → forecast of the last bin
-                             └─ data/processed/forecast_live/latest_forecast.json ─ Django /api/forecast/ghi/
+                             └─ <shared folder>/latest_forecast.json ─ Django /api/forecast/ghi/
 ```
 
 Code: `src/greenhouse_mpc/forecast/live_runner.py`. Config: `config/live.yaml`. Tests: `tests/test_live_runner.py`.
 Collector: `field_collector/README.md`. Dashboard API: `markdown/frontend_api_contract.md`.
 
-## Running (laptop)
+## Machines and folders
+
+| Machine | Role |
+|---|---|
+| Lab PC (always on) | **operations**: live runner loop. Only this machine runs it (records/ and the weekly update must not run twice) |
+| Laptop / any PC with the synced folder | dashboard (read-only), development, demos |
+| Field PC | collector only |
+
+| Folder | Content | Synced |
+|---|---|---|
+| `OneDrive - 전북대학교\GreenhouseFieldData\` (`GREENHOUSE_SHARED_DIR`) | collector output (`latest.json`, `outside/`, `raw/`) and `latest_forecast.json` | yes |
+| `C:\GreenhouseOps\` (`GREENHOUSE_DATA_DIR`, lab PC) | processed data, models, live forecast log (rewritten every 5 min) | no |
+| project `mpc_lab/records/` | operation state and logs (small, tracked in git) | yes (project) |
+
+Paths: `src/greenhouse_mpc/paths.py`. Without the variables everything stays under `mpc_lab/data` (development).
+The collector's `output_dir` must be the shared folder.
+
+## Running
 
 ```powershell
-# mpc_lab (conda env sfes); field dir = the synced collector output_dir
-cd mpc_lab
-python -m greenhouse_mpc.forecast.live_runner --once --field-dir "C:\...\GreenhouseCollector\data"
-python -m greenhouse_mpc.forecast.live_runner --loop --field-dir "C:\...\GreenhouseCollector\data"
+# lab PC, mpc_lab folder: one cycle, then the loop
+powershell -ExecutionPolicy Bypass -File .\scripts\run_live_operation.ps1 -Once
+powershell -ExecutionPolicy Bypass -File .\scripts\run_live_operation.ps1
 
-# dashboard (project .venv), second terminal
-$env:LIVE_DATA_SOURCE = "field_collector"
-$env:LIVE_DATA_FILE = "C:\...\GreenhouseCollector\data\latest.json"
-$env:GHI_FORECAST_FILE = "<project>\mpc_lab\data\processed\forecast_live\latest_forecast.json"
-.\.venv\Scripts\python.exe manage.py runserver 8010
+# any machine with the synced folder, project root: dashboard with field data + forecast
+powershell -ExecutionPolicy Bypass -File .\scripts\run_dashboard_live.ps1
 ```
 
-The laptop must be on for forecasts; the collector keeps recording on the field PC meanwhile.
+The scripts set the variables for their own process only. Defaults: `C:\GreenhouseOps`,
+`%OneDriveCommercial%\GreenhouseFieldData`, Python of the conda env `sfes`; override with `-DataDir`,
+`-SharedDir`, `-PythonExe`. If the active model files are not in this machine's data folder (first run on a
+new machine), the cycle retrains them.
 
 ## Cycle (every 5 min, 2 min after the bin closes)
 
@@ -48,5 +64,5 @@ The laptop must be on for forecasts; the collector keeps recording on the field 
   minutes present).
 - The MPC is still a mock; it already receives the live current openings. The real controller will use the
   live snapshot and this forecast.
-- First run on 2026-10-11 without field data: model `xgb_expanding_20261011_6efb4475` (data to 10-09),
-  status `data_stale`.
+- First runs on 2026-10-11 without field data: model `xgb_expanding_20261011_6efb4475` (data to 10-09),
+  status `data_stale`; lab PC set up with `C:\GreenhouseOps` and the shared folder the same day.

@@ -15,13 +15,14 @@ from pathlib import Path
 import pandas as pd
 
 from ..ingestion.outside_schema import MPC_LAB_DIR
+from ..paths import processed_dir
 from ..ingestion.versioning import build_version, file_sha256, read_parquet_version, write_parquet
 from .clearsky import load_clearsky_config
 from .clearsky_index import KC_STATUSES, clear_sky_index
 
 PIPELINE = "clear_sky_index"
 PIPELINE_VERSION = "1.1"       # 1.1: kc_input / kc_input_status (causal inputs)
-PROCESSED = MPC_LAB_DIR / "data" / "processed"
+PROCESSED = processed_dir()
 OUTSIDE_FILE = PROCESSED / "outside" / "outside_5min.parquet"
 CLEARSKY_FILE = PROCESSED / "clearsky" / "clearsky_5min.parquet"
 OUTPUT_DIR = PROCESSED / "clear_sky_index"

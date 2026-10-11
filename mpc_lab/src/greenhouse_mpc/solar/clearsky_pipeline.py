@@ -16,13 +16,14 @@ from pathlib import Path
 import pandas as pd
 
 from ..ingestion.outside_schema import MPC_LAB_DIR
+from ..paths import processed_dir
 from ..ingestion.versioning import build_version, file_sha256, read_parquet_version, write_parquet
 from .clearsky import clearsky_five_minute, clearsky_minute, load_clearsky_config
 
 PIPELINE = "clearsky"
 PIPELINE_VERSION = "1.0"       # bump when the computation changes
-OUTSIDE_DIR = MPC_LAB_DIR / "data" / "processed" / "outside"
-OUTPUT_DIR = MPC_LAB_DIR / "data" / "processed" / "clearsky"
+OUTSIDE_DIR = processed_dir() / "outside"
+OUTPUT_DIR = processed_dir() / "clearsky"
 
 
 def _grid_meta(name, timestamps):

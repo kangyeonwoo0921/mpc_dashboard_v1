@@ -14,14 +14,15 @@ from pathlib import Path
 import pandas as pd
 
 from ..ingestion.outside_schema import MPC_LAB_DIR
+from ..paths import processed_dir
 from ..ingestion.versioning import build_version, file_sha256, read_parquet_version
 from .baselines import evaluate
 from .config import load_forecast_config
 
 PIPELINE = "forecast_baseline"
 PIPELINE_VERSION = "1.1"       # 1.1: causal kc_input as forecast input
-KC_FILE = MPC_LAB_DIR / "data" / "processed" / "clear_sky_index" / "kc_5min.parquet"
-OUTPUT_DIR = MPC_LAB_DIR / "data" / "processed" / "forecast_baseline"
+KC_FILE = processed_dir() / "clear_sky_index" / "kc_5min.parquet"
+OUTPUT_DIR = processed_dir() / "forecast_baseline"
 
 
 def run_baseline_pipeline(config=None, kc_file=KC_FILE, output_dir=OUTPUT_DIR, write=True):

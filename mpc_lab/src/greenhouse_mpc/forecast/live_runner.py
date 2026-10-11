@@ -7,9 +7,11 @@ One cycle (config/live.yaml):
 
 1. outside pipeline over the historical exports (config/outside_data.yaml raw_dir) plus the collector's
    ``<field_dir>/outside/outside_*.csv``; then clear sky and clear-sky index (all re-run, ~20 s);
-2. weekly forecast update (operation.update) when none has run for ``operation.retrain_interval_days``;
+2. weekly forecast update (operation.update) when none has run for ``operation.retrain_interval_days``,
+   or when an active model's files are not in this machine's data folder;
 3. forecast issued for the last complete 5-min bin (operation.forecast_at, appended to the live log);
-4. ``data/processed/forecast_live/latest_forecast.json`` for the dashboard and the MPC.
+4. ``latest_forecast.json`` for the dashboard and the MPC: in ``GREENHOUSE_SHARED_DIR`` if set, else
+   ``<data>/processed/forecast_live/`` (paths.py).
 
 No forecast (status ``unavailable`` with a reason) when the newest observation is older than
 ``max_data_age_min``, at night / below the kc elevation limit, or when the bin's GHI is not observed.
@@ -29,8 +31,9 @@ import yaml
 
 from ..config_loader import CONFIG_DIR
 from ..ingestion.outside_pipeline import run_outside_pipeline
-from ..ingestion.outside_schema import MPC_LAB_DIR, load_outside_config
+from ..ingestion.outside_schema import load_outside_config
 from ..ingestion.versioning import read_parquet_version
+from ..paths import processed_dir, shared_dir
 from ..provenance import Parameter, ProvenanceError, parse_parameters
 from ..solar.clearsky_index_pipeline import run_clearsky_index_pipeline
 from ..solar.clearsky_pipeline import run_clearsky_pipeline
@@ -39,7 +42,8 @@ from .operation import KC_FILE, OperationPaths, forecast_at, load_state, update
 
 KST = timezone(timedelta(hours=9))
 SCHEMA_VERSION = "ghi-forecast/0.1"
-LATEST_FILE = MPC_LAB_DIR / "data" / "processed" / "forecast_live" / "latest_forecast.json"
+LATEST_FILE = (shared_dir() / "latest_forecast.json" if shared_dir()
+               else processed_dir() / "forecast_live" / "latest_forecast.json")
 
 
 @dataclass(frozen=True)
@@ -124,7 +128,8 @@ def run_cycle(now=None, field_dir=None, live_config=None, paths=None, latest_fil
         state = load_state(paths)
         interval = int(config.value("operation.retrain_interval_days"))
         last = state.get("last_update")
-        if last is None or (now.date() - pd.Timestamp(last).date()).days >= interval:
+        models_missing = any(not (paths.models / model_id).is_dir() for model_id in (state.get("active") or {}).values())
+        if last is None or models_missing or (now.date() - pd.Timestamp(last).date()).days >= interval:
             update(config, table, now.date(), paths, None if source is None else source["dataset_id"])
         payload = forecast_payload(config, table, now, paths, float(live_config.value("max_data_age_min")))
         payload["field_data_dir_set"] = bool(field_dir)

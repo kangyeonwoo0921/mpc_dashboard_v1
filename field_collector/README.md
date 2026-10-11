@@ -34,7 +34,7 @@ C:\GreenhouseCollector\
 | `timeout_s` | 10 | 응답 대기 시간(초) |
 | `retry_wait_s` | 300 | 읽기 실패 후 다시 시도하기 전 대기(초) |
 | `min_free_disk_gb` | 5 | 디스크 여유가 이보다 적으면 쓰기 중지 |
-| `output_dir` | `C:\GreenhouseCollector\data` | 저장 폴더. OneDrive 등 동기화 폴더로 바꾸면 노트북으로 자동 전달 |
+| `output_dir` | `C:\GreenhouseCollector\data` | 저장 폴더. 공유 동기화 폴더(`GreenhouseFieldData`)로 바꾸면 연구실 PC·노트북으로 자동 전달 |
 
 ## 2. 확인 (아무 파일도 쓰지 않음)
 
@@ -89,21 +89,16 @@ Stop-ScheduledTask -TaskName "GreenhouseCollector"                          # �
 Unregister-ScheduledTask -TaskName "GreenhouseCollector" -Confirm:$false    # 제거
 ```
 
-## 5. 노트북의 3D 디지털 트윈에 연결
+## 5. 연구실 PC·노트북에서 쓰기
 
-`output_dir`이 동기화 폴더(OneDrive 등)이면 `latest.json`이 노트북으로 넘어온다. 노트북의 프로젝트 폴더에서:
+`output_dir`이 공유 폴더(`OneDrive - 전북대학교\GreenhouseFieldData`)이면:
 
-```powershell
-$env:LIVE_DATA_SOURCE = "field_collector"
-$env:LIVE_DATA_FILE = "C:\Users\<사용자>\OneDrive\GreenhouseCollector\data\latest.json"   # 동기화된 실제 경로
-.\.venv\Scripts\python.exe manage.py runserver 8010
-```
+- 연구실 PC(운영): `mpc_lab\scriptsun_live_operation.ps1` — 5분마다 일사 예측, `latest_forecast.json`을 같은 폴더에 씀
+- 어느 PC든(시연 포함): `scriptsun_dashboard_live.ps1` — 3D 디지털 트윈이 실제 값과 예측을 표시
+- 마지막 수집이 3분 넘게 끊기면 실시간 값은 모두 `null`, `connected: false`로 나온다(오래된 값을 현재 값처럼 보여주지 않음).
+- 스크립트 없이 실행하면 대시보드는 지금처럼 mock 데이터다.
 
-- `/api/digital-twin/live/`가 `source: "field_collector"`로 실제 값을 돌려주고, 화면 표시는 "MOCK DATA"가 아닌 "LIVE"가 된다.
-- `timestamp`는 수집 시각이다. 마지막 수집이 `LIVE_DATA_MAX_AGE_S`(기본 180초)보다 오래되었거나 파일이 없거나 깨졌으면
-  모든 값이 `null`, `connected: false`로 나온다(오래된 값을 현재 값처럼 보여주지 않음).
-- 환경변수를 지정하지 않으면 지금처럼 `mock_dynamic`이다.
-- 값은 약 1분마다 바뀐다(수집 주기 + 동기화 지연).
+자세한 내용: `mpc_lab/docs/LIVE_OPERATION.md`.
 
 ## 6. 확인할 점
 

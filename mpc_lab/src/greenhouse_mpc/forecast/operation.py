@@ -38,6 +38,7 @@ import pandas as pd
 import xgboost as xgb
 
 from ..ingestion.outside_schema import MPC_LAB_DIR
+from ..paths import processed_dir
 from ..ingestion.versioning import read_parquet_version
 from ..solar.clearsky import clearsky_five_minute, load_clearsky_config
 from .baselines import internal_statistics
@@ -46,7 +47,7 @@ from .features import feature_frame
 from .metrics import rmse
 from .split import day_of
 
-KC_FILE = MPC_LAB_DIR / "data" / "processed" / "clear_sky_index" / "kc_5min.parquet"
+KC_FILE = processed_dir() / "clear_sky_index" / "kc_5min.parquet"
 STEP = pd.Timedelta(minutes=5)
 
 
@@ -61,8 +62,8 @@ class OperationPaths:
     def default(cls):
         return cls(MPC_LAB_DIR / "records" / "forecast_operation_state.json",
                    MPC_LAB_DIR / "records" / "forecast_operation_log.jsonl",
-                   MPC_LAB_DIR / "data" / "processed" / "forecast_models",
-                   MPC_LAB_DIR / "data" / "processed" / "forecast_live" / "forecasts.parquet")
+                   processed_dir() / "forecast_models",
+                   processed_dir() / "forecast_live" / "forecasts.parquet")
 
     @classmethod
     def sandbox(cls, root):

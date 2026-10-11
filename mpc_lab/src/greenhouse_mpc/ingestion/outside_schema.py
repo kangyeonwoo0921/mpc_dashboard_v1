@@ -9,6 +9,7 @@ from zoneinfo import ZoneInfo
 import yaml
 
 from ..config_loader import CONFIG_DIR, load_config_file
+from ..paths import data_dir_overridden, processed_dir
 from ..provenance import Parameter, ProvenanceError, parse_parameters
 
 MPC_LAB_DIR = CONFIG_DIR.parent
@@ -111,7 +112,9 @@ def load_outside_config(path=None, config_dir=CONFIG_DIR, base_dir=MPC_LAB_DIR):
     source = raw["source"]
     base = Path(base_dir)
     return OutsideConfig(
-        raw_dir=base / source["raw_dir"], output_dir=base / source["output_dir"],
+        raw_dir=base / source["raw_dir"],
+        output_dir=(processed_dir() / Path(source["output_dir"]).name if data_dir_overridden()
+                    else base / source["output_dir"]),
         file_glob=source["file_glob"], encoding=source["encoding"],
         timestamp_format=source["timestamp_format"], timezone=ZoneInfo(source["timezone"]),
         layouts=layouts, known_headers=tuple(tuple(h) for h in raw.get("known_headers", [])),
