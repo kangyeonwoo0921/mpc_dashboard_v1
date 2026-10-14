@@ -8,15 +8,15 @@ function titleCase(value) {
 
 export function displayTitle(object, semanticType = null) {
   const metadata = object?.userData ?? {};
-  const sensorLabels = { temperature_rh: "T/RH Sensor", solar_radiation: "Solar Radiation Sensor" };
+  const sensorLabels = { temperature_rh: "온습도 센서", solar_radiation: "일사 센서" };
   const type = semanticType ?? metadata.asset_type;
   const base = type === "sensor"
-    ? sensorLabels[metadata.sensor_type] ?? "Sensor"
+    ? sensorLabels[metadata.sensor_type] ?? "센서"
     : type === "crop_zone"
-      ? "Crop Zone"
-      : ASSET_LABELS[type] ?? ASSET_LABELS[metadata.asset_type] ?? titleCase(type) ?? object?.name ?? "Object";
+      ? "재배 구역"
+      : ASSET_LABELS[type] ?? ASSET_LABELS[metadata.asset_type] ?? titleCase(type) ?? object?.name ?? "객체";
   const span = Number(metadata.span_index);
-  return Number.isFinite(span) && span > 0 ? `${base} — Span ${span}` : base;
+  return Number.isFinite(span) && span > 0 ? `${base} — ${span}동` : base;
 }
 
 export function formatInspectionData(object, { openingPercent = null, mappingNote = null } = {}) {
@@ -26,29 +26,29 @@ export function formatInspectionData(object, { openingPercent = null, mappingNot
   const add = (label, value) => {
     if (value !== null && value !== undefined && value !== "") rows.push({ label, value: String(value) });
   };
-  add("Name", object.name);
-  add("Asset type", metadata.asset_type);
-  add("Span index", metadata.span_index);
-  add("Control variable", metadata.control_variable);
-  if (typeof openingPercent === "number" && Number.isFinite(openingPercent)) add("Opening", `${openingPercent.toFixed(1)}%`);
-  else if (typeof metadata.opening_percent === "number") add("Opening", `${metadata.opening_percent.toFixed(1)}%`);
-  if (typeof metadata.verified === "boolean") add("Verified", metadata.verified ? "verified" : "unverified");
-  else if (typeof metadata.verified_position === "boolean") add("Position", metadata.verified_position ? "verified" : "unverified");
-  add("Source confidence", metadata.source_confidence);
-  add("Geometry confidence", metadata.geometry_confidence);
-  add("Position confidence", metadata.position_confidence);
-  if (typeof metadata.plc_tag_verified === "boolean") add("PLC tag", metadata.plc_tag_verified ? "verified" : "unverified");
-  add("Mapping", mappingNote);
+  add("이름", object.name);
+  add("종류", metadata.asset_type);
+  add("동 번호", metadata.span_index);
+  add("제어 변수", metadata.control_variable);
+  if (typeof openingPercent === "number" && Number.isFinite(openingPercent)) add("열림", `${openingPercent.toFixed(1)}%`);
+  else if (typeof metadata.opening_percent === "number") add("열림", `${metadata.opening_percent.toFixed(1)}%`);
+  if (typeof metadata.verified === "boolean") add("확인", metadata.verified ? "확인됨" : "미확인");
+  else if (typeof metadata.verified_position === "boolean") add("위치", metadata.verified_position ? "확인됨" : "미확인");
+  add("출처 신뢰도", metadata.source_confidence);
+  add("형상 신뢰도", metadata.geometry_confidence);
+  add("위치 신뢰도", metadata.position_confidence);
+  if (typeof metadata.plc_tag_verified === "boolean") add("PLC 태그", metadata.plc_tag_verified ? "확인됨" : "미확인");
+  add("연결 상태", mappingNote);
   return { title: displayTitle(object), rows };
 }
 
 export function formatTooltipText(subject, context = {}) {
-  if (subject?.kind === "span") return [`Span ${subject.spanId.slice(1)}`, "Click to focus"];
+  if (subject?.kind === "span") return [`${Number(subject.spanId.slice(1))}동`, "클릭하면 확대"];
   const object = subject?.entry?.owner ?? subject;
   const type = subject?.entry?.type ?? null;
   const details = formatInspectionData(object, context);
   details.title = displayTitle(object, type);
-  const preferred = details.rows.filter((row) => ["Opening", "Position", "Mapping"].includes(row.label));
+  const preferred = details.rows.filter((row) => ["열림", "위치", "연결 상태"].includes(row.label));
   return [details.title, ...preferred.map((row) => `${row.label}: ${row.value}`)];
 }
 

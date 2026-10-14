@@ -22,7 +22,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from . import psychrometrics
-from .adapter import apply_growlink_mock_overrides, normalize_growlink_live
+from .adapter import apply_growlink_mock_overrides, normalize_growlink_live, normalize_growlink_status
 
 
 FIXTURE_PATH = Path(__file__).with_name("fixtures") / "growlink_live_sample.json"
@@ -112,3 +112,24 @@ def get_live_snapshot(
         return load_field_snapshot(os.environ.get("LIVE_DATA_FILE"), current, max_age)
     raw = load_raw_snapshot(selected, current)
     return normalize_growlink_live(raw, timestamp=current, source=selected)
+
+
+def get_live_safety(source: str | None = None, *, now: datetime | None = None) -> dict[str, bool | None]:
+    """Rain / strong-wind flags (field_collector only; None for mock sources or stale/missing data)."""
+
+    selected = source or os.environ.get("LIVE_DATA_SOURCE", "mock_dynamic")
+    empty = {"rain": None, "strong_wind": None}
+    if selected != "field_collector":
+        return empty
+    current = now or datetime.now(tz=SEOUL)
+    path = os.environ.get("LIVE_DATA_FILE")
+    try:
+        record = json.loads(Path(path).read_text(encoding="utf-8"))
+        collected_at = datetime.fromisoformat(record["collected_at"])
+    except (OSError, ValueError, KeyError, TypeError):
+        return empty
+    if collected_at.tzinfo is None:
+        collected_at = collected_at.replace(tzinfo=SEOUL)
+    if abs((current - collected_at).total_seconds()) > float(os.environ.get("LIVE_DATA_MAX_AGE_S", FIELD_MAX_AGE_S)):
+        return empty
+    return normalize_growlink_status(record.get("response"))

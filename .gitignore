@@ -7,3 +7,4 @@ dist/
 tmp/
 *.blend1
 *.blend2
+runtime/

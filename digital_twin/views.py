@@ -37,6 +37,9 @@ def _asset_urls():
     return {
         "css_viewer_url": versioned("digital_twin/css/viewer.css"),
         "css_live_panel_url": versioned("digital_twin/css/live-panel.css"),
+        "css_ops_url": versioned("digital_twin/css/ops-status.css"),
+        "css_recommendation_url": versioned("digital_twin/css/recommendation.css"),
+        "recommendation_module_url": versioned("digital_twin/js/recommendation.mjs"),
         "model_url": versioned("digital_twin/models/greenhouse.glb"),
         "viewer_module_url": versioned("digital_twin/js/viewer.mjs"),
         "import_map": json.dumps({"imports": imports}, indent=1),
@@ -67,6 +70,67 @@ def ghi_forecast(request):
     from live_data.forecast import get_ghi_forecast
 
     response = JsonResponse(get_ghi_forecast(), json_dumps_params={"ensure_ascii": False})
+    response["Cache-Control"] = "no-store"
+    return response
+
+
+def screen_recommendation(request):
+    """Rule-based screen recommendation (recommendation only); see recommendation/engine.py."""
+
+    if request.method != "GET":
+        return HttpResponseNotAllowed(["GET"])
+    from recommendation.engine import run
+
+    response = JsonResponse(run(), json_dumps_params={"ensure_ascii": False})
+    response["Cache-Control"] = "no-store"
+    return response
+
+
+def recommendation_settings(request):
+    """GET: values + field metadata + change history. POST JSON {"values": {...}, "changed_by", "note"}."""
+
+    from recommendation import settings_store
+
+    if request.method == "GET":
+        payload, status = settings_store.describe(), 200
+    elif request.method == "POST":
+        try:
+            body = json.loads(request.body.decode("utf-8") or "{}")
+            settings_store.save(body.get("values", {}), changed_by=body.get("changed_by"), note=body.get("note"))
+            payload, status = settings_store.describe(), 200
+        except settings_store.SettingsError as error:
+            payload, status = {"errors": error.errors}, 400
+        except (ValueError, AttributeError):
+            payload, status = {"errors": {"body": "JSON 객체가 필요합니다"}}, 400
+    else:
+        return HttpResponseNotAllowed(["GET", "POST"])
+    response = JsonResponse(payload, status=status, json_dumps_params={"ensure_ascii": False})
+    response["Cache-Control"] = "no-store"
+    return response
+
+
+def recommendation_settings_reset(request):
+    """POST JSON {"keys": [...] (optional, all if omitted), "changed_by"}: restore defaults."""
+
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+    from recommendation import settings_store
+
+    try:
+        body = json.loads(request.body.decode("utf-8") or "{}")
+    except ValueError:
+        body = {}
+    settings_store.reset(body.get("keys"), changed_by=body.get("changed_by"))
+    response = JsonResponse(settings_store.describe(), json_dumps_params={"ensure_ascii": False})
+    response["Cache-Control"] = "no-store"
+    return response
+
+
+def recommendation_page(request):
+    urls = _asset_urls()
+    context = {"css_url": urls["css_recommendation_url"], "css_ops_url": urls["css_ops_url"],
+               "js_url": urls["recommendation_module_url"], "import_map": urls["import_map"]}
+    response = render(request, "digital_twin/recommendation.html", context)
     response["Cache-Control"] = "no-store"
     return response
 
@@ -159,11 +223,24 @@ def mpc_recommendation(request):
     return response
 
 
+def _optional_float(request, name, low, high):
+    text = request.GET.get(name)
+    if text in (None, ""):
+        return None
+    value = float(text)
+    if not (low <= value <= high):
+        raise ValueError(f"{name} must be in [{low}, {high}]")
+    return value
+
+
 def radiation_v1(request):
     """Spec-based v1 radiation model (physics.radiation_v1); physics code stays in that package.
 
     Without ``time`` the current time with LIVE weather and actuators is used. A requested
-    ``time`` has no measured weather, so radiation stays None with a ``missing_input`` status.
+    ``time`` has no measured weather, so radiation stays None with a ``missing_input`` status
+    unless ``ghi`` (e.g. a forecast value, labelled by ``ghi_source``) is given. ``shade_screen_1``
+    and ``shade_screen_2`` (opening %) override the LIVE screen positions for previews.
+    DNI/DHI are separated from GHI with Engerer2 (estimated, see physics/radiation_v1/decomposition.py).
     """
 
     if request.method != "GET":
@@ -174,6 +251,11 @@ def radiation_v1(request):
     model = shared_model()
     snapshot = get_live_snapshot()
     zone = ZoneInfo(model.site.timezone)
+    try:
+        ghi = _optional_float(request, "ghi", 0, 1500)
+        overrides = {f"shade_screen_{n}_opening_percent": _optional_float(request, f"shade_screen_{n}", 0, 100) for n in (1, 2)}
+    except ValueError as error:
+        return HttpResponseBadRequest(str(error))
     text = request.GET.get("time")
     if text:
         try:
@@ -186,7 +268,11 @@ def radiation_v1(request):
     else:
         when = datetime.now(tz=zone)
         weather = weather_from_live(snapshot)
-    response = JsonResponse(model.to_api(when, weather, actuators_from_live(snapshot)),
-                            json_dumps_params={"ensure_ascii": False})
+    if ghi is not None:
+        weather = {"ghi_W_m2": ghi, "dni_W_m2": None, "dhi_W_m2": None,
+                   "source": request.GET.get("ghi_source", "query")[:40]}
+    actuators = actuators_from_live(snapshot)
+    actuators.update({k: v for k, v in overrides.items() if v is not None})
+    response = JsonResponse(model.to_api(when, weather, actuators), json_dumps_params={"ensure_ascii": False})
     response["Cache-Control"] = "no-store"
     return response

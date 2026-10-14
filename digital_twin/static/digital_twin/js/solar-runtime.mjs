@@ -28,12 +28,16 @@ export function physicsToThree([x, y, z]) {
 
 /**
  * One shape for both backends. v1 (spec model) shows total irradiance when every
- * cell has a value, otherwise the binary sunlit map; the reference model shows PAR.
+ * cell has a value, otherwise the estimated direct beam (GHI separated by Engerer2)
+ * where it was resolved, otherwise the binary sunlit map; the reference model shows PAR.
  */
 export function normalizeSolarPayload(payload) {
   if (payload.model === "radiation_v1") {
     const grid = payload.radiation.grid;
     const haveTotals = grid.total_W_m2.some((v) => v !== null) && grid.total_W_m2.every((v, i) => v !== null || grid.sunlit[i] === null);
+    const direct = grid.direct_W_m2 ?? [];
+    const haveDirect = !haveTotals && (payload.solar.altitude_deg ?? 0) > 0 && direct.some((v) => v !== null);
+    const mode = haveTotals ? "irradiance" : haveDirect ? "direct" : "sunlit";
     return {
       timestamp: payload.timestamp,
       sun: { altitude_deg: payload.solar.altitude_deg, azimuth_deg: payload.solar.azimuth_deg, direction_threejs: payload.solar.direction_threejs },
@@ -41,10 +45,14 @@ export function normalizeSolarPayload(payload) {
       height: grid.height_m,
       grid: {
         rows: grid.rows, cols: grid.cols, cell: grid.cell_size_m, origin: grid.origin_xy_m,
-        values: haveTotals ? grid.total_W_m2 : grid.sunlit.map((v) => (v === null ? null : Number(v))),
-        mode: haveTotals ? "irradiance" : "sunlit",
+        values: mode === "irradiance" ? grid.total_W_m2 : mode === "direct" ? direct : grid.sunlit.map((v) => (v === null ? null : Number(v))),
+        mode,
       },
-      summary: { status: payload.radiation.status, sunlitFraction: payload.radiation.sunlit_fraction, mean: payload.radiation.mean_W_m2, unit: "W/m²" },
+      summary: {
+        status: payload.radiation.status, sunlitFraction: payload.radiation.sunlit_fraction, mean: payload.radiation.mean_W_m2, unit: "W/m²",
+        directMean: payload.radiation.direct_resolved_mean_W_m2 ?? null, directResolved: payload.radiation.direct_resolved_fraction ?? null,
+        weatherSource: payload.inputs?.weather?.source ?? null, ghi: payload.inputs?.weather?.ghi_W_m2 ?? null,
+      },
     };
   }
   return {
@@ -176,9 +184,13 @@ export class SolarRuntime {
     if (this.lightMap) this.lightMap.visible = enabled;
   }
 
-  async refresh(time = null) {
+  async refresh(time = null, params = {}) {
     const requestId = ++this.requestId;
-    const url = time ? `${this.endpoint}?time=${encodeURIComponent(time)}` : this.endpoint;
+    const query = new URLSearchParams();
+    if (time) query.set("time", time);
+    for (const [key, value] of Object.entries(params)) if (value !== null && value !== undefined) query.set(key, String(value));
+    const text = query.toString();
+    const url = text ? `${this.endpoint}?${text}` : this.endpoint;
     const response = await this.fetchImpl(url, { cache: "no-store" });
     if (!response.ok) throw new Error(`Solar API ${response.status}`);
     const payload = await response.json();

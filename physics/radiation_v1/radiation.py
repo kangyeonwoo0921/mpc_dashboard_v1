@@ -28,11 +28,6 @@ class RadiationCellResult:
     total_W_m2: float | None
 
 
-def decompose_ghi(ghi_W_m2, solar_state, weather_context):
-    """GHI -> (DNI, DHI). Candidates: Erbs, Reindl, DIRINT; to be chosen after a literature review."""
-    raise NotImplementedError("GHI decomposition algorithm not selected yet (spec section 23)")
-
-
 def weather_status(weather):
     if weather.get("dni_W_m2") is not None and weather.get("dhi_W_m2") is not None:
         return "ok"

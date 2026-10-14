@@ -23,6 +23,7 @@ class LiveRunnerTests(unittest.TestCase):
     def setUpClass(cls):
         table = synthetic_table(days=40)                                     # 2026-07-28 .. 2026-09-05
         table["ghi_input_status"] = "observed"
+        table["ghi_status"] = table.kc_status.map({"valid": "observed"}).fillna("missing")
         cls.table = table
         cls.config = load_forecast_config()
         cls.tmp = tempfile.TemporaryDirectory()
@@ -48,6 +49,9 @@ class LiveRunnerTests(unittest.TestCase):
         self.assertEqual({h["method"] for h in p["horizons"][:6]}, {"xgb_expanding"})
         self.assertEqual({h["method"] for h in p["horizons"][6:]}, {"convex_combination"})
         self.assertTrue(all(h["ghi_w_m2"] is not None for h in p["horizons"]))
+        recent = p["recent_observations"]
+        self.assertEqual(len(recent), 12)
+        self.assertEqual(recent[-1]["time"], "2026-09-01T12:00:00+09:00")                # up to the issue bin
         json.dumps(p)                                                         # serialisable
 
     def test_unavailable_states(self):

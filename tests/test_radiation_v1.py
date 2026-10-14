@@ -12,7 +12,7 @@ import trimesh
 from physics.coordinates import enu_from_altitude_azimuth, enu_to_greenhouse
 from physics.radiation_v1.config import OpticalProperties, SiteConfig
 from physics.radiation_v1.geometry import COVER, OPAQUE, CropCell, CropGrid, PhysicsScene, ScreenLayer
-from physics.radiation_v1.radiation import compute_cells, decompose_ghi, weather_status
+from physics.radiation_v1.radiation import compute_cells, weather_status
 from physics.radiation_v1.raytrace import trace_direct_ray, trace_direct_rays
 from physics.radiation_v1.solar import calculate_solar_state
 
@@ -137,8 +137,6 @@ class RadiationSemantics(unittest.TestCase):
         self.assertIsNone(cell.total_W_m2)
         self.assertIn("decomposition_required", flags)
         self.assertEqual(weather_status({}), "missing_input")
-        with self.assertRaises(NotImplementedError):
-            decompose_ghi(500.0, None, None)
 
 
 @unittest.skipUnless(importlib.util.find_spec("embreex"), "full GLB scene needs Embree for practical speed")
@@ -154,8 +152,11 @@ class GreenhouseModel(unittest.TestCase):
                            {"roof_vent_left_percent": 0, "roof_vent_right_percent": 0,
                             "shade_screen_1_opening_percent": 100, "shade_screen_2_opening_percent": 100})
         radiation = api["radiation"]
-        self.assertEqual(radiation["status"], "decomposition_required")
-        self.assertIsNone(radiation["mean_W_m2"])
+        self.assertEqual(api["inputs"]["weather"]["decomposition"]["model"], "engerer2")
+        self.assertIn("parameter_missing:cover.diffuse_transmittance", radiation["statuses"])
+        self.assertIsNone(radiation["mean_W_m2"])                             # diffuse optics still unknown
+        self.assertGreater(radiation["direct_resolved_fraction"], 0.8)
+        self.assertGreater(radiation["direct_resolved_mean_W_m2"], 0)
         self.assertGreater(radiation["sunlit_fraction"], 0.5)
         grid = radiation["grid"]
         self.assertIsNone(grid["sunlit"][0])                                  # front notch (-Y, X1) is outside the crop zone

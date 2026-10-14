@@ -22,7 +22,7 @@ Collector: `field_collector/README.md`. Dashboard API: `markdown/frontend_api_co
 
 | Folder | Content | Synced |
 |---|---|---|
-| `OneDrive - 전북대학교\GreenhouseFieldData\` (`GREENHOUSE_SHARED_DIR`) | collector output (`latest.json`, `outside/`, `raw/`) and `latest_forecast.json` | yes |
+| Google Drive `내 드라이브\GreenhouseFieldData\` (school Google account, Drive for desktop, mirroring; `GREENHOUSE_SHARED_DIR`) | collector output (`latest.json`, `outside/`, `raw/`) and `latest_forecast.json` | yes |
 | `C:\GreenhouseOps\` (`GREENHOUSE_DATA_DIR`, lab PC) | processed data, models, live forecast log (rewritten every 5 min) | no |
 | project `mpc_lab/records/` | operation state and logs (small, tracked in git) | yes (project) |
 
@@ -41,9 +41,27 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_dashboard_live.ps1
 ```
 
 The scripts set the variables for their own process only. Defaults: `C:\GreenhouseOps`,
-`%OneDriveCommercial%\GreenhouseFieldData`, Python of the conda env `sfes`; override with `-DataDir`,
+`%USERPROFILE%\My Drive` or `내 드라이브` `\GreenhouseFieldData` (Google Drive), Python of the conda env `sfes`; override with `-DataDir`,
 `-SharedDir`, `-PythonExe`. If the active model files are not in this machine's data folder (first run on a
 new machine), the cycle retrains them.
+
+### Auto-start on the lab PC (optional, not registered yet)
+
+Starts the loop at logon, never twice, restarts after a failure. Run once in PowerShell (project path
+as on the lab PC):
+
+```powershell
+$script = "C:\Users\user\OneDrive - 전북대학교\바탕 화면\mpc_dashboard_v1\mpc_lab\scripts\run_live_operation.ps1"
+$action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$script`""
+$trigger = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
+$settings = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 5) -ExecutionTimeLimit ([TimeSpan]::Zero)
+Register-ScheduledTask -TaskName "GreenhouseLiveForecast" -Action $action -Trigger $trigger -Settings $settings
+```
+
+Status `Get-ScheduledTask GreenhouseLiveForecast | Get-ScheduledTaskInfo`; stop `Stop-ScheduledTask
+GreenhouseLiveForecast`; remove `Unregister-ScheduledTask GreenhouseLiveForecast -Confirm:$false`.
+Also: power plan "never sleep" and Windows Update active hours on the lab PC. The latest state is always in
+`latest_forecast.json` (`status`, `reason`).
 
 ## Cycle (every 5 min, 2 min after the bin closes)
 

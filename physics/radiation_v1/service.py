@@ -11,6 +11,7 @@ from src.config_loader import PROJECT_ROOT, load_config
 from ..coordinates import physics_to_threejs
 from .aggregation import summarize
 from .config import load_optics, load_radiation, load_site
+from .decomposition import decompose_ghi
 from .geometry import build_crop_grid, load_scene
 from .radiation import compute_cells
 from .raytrace import trace_direct_rays
@@ -29,7 +30,15 @@ class RadiationModelV1:
                                     self.radiation.crop_reference_height_m)
         self.scene = load_scene(self.config)
 
+    def separate(self, timestamp, weather):
+        """Fill DNI/DHI from GHI with the separation model when they are not measured (estimated values)."""
+        if weather.get("dni_W_m2") is not None and weather.get("dhi_W_m2") is not None:
+            return weather, None
+        dni, dhi, info = decompose_ghi(weather.get("ghi_W_m2"), timestamp, self.site)
+        return {**weather, "dni_W_m2": dni, "dhi_W_m2": dhi, "decomposition": info}, info
+
     def evaluate(self, timestamp, weather, actuators):
+        weather, separation = self.separate(timestamp, weather)
         solar = calculate_solar_state(timestamp, self.site)
         if solar.is_day:
             rays = trace_direct_rays(self.grid.centers, solar.sun_direction_greenhouse, self.scene, actuators)
@@ -37,9 +46,12 @@ class RadiationModelV1:
             rays = None
         results, flags = compute_cells(self.grid, solar, weather, self.optics, self.scene, actuators,
                                        rays or _night_rays(len(self.grid.cells), self.scene))
+        if separation and separation["status"].startswith("out_of_range"):
+            flags.add(f"decomposition_{separation['status']}")
         summary = summarize(results, self.grid.cells)
         primary = "ok" if not flags else sorted(flags, key=_status_rank)[0]
-        return {"solar": solar, "cells": results, "summary": summary, "status": primary, "statuses": sorted(flags)}
+        return {"solar": solar, "cells": results, "summary": summary, "status": primary, "statuses": sorted(flags),
+                "weather": weather}
 
     def provenance(self):
         return {
@@ -75,7 +87,7 @@ class RadiationModelV1:
                 "direction_threejs": list(physics_to_threejs(solar.sun_direction_greenhouse)),
                 "path_threejs": [list(physics_to_threejs(v)) for v in daily_sun_path(timestamp, self.site)],
             },
-            "inputs": {"weather": weather, "actuators": actuators},
+            "inputs": {"weather": outcome["weather"], "actuators": actuators},
             "radiation": {
                 "status": outcome["status"],
                 "statuses": outcome["statuses"],
@@ -106,7 +118,7 @@ def _night_rays(n, scene):
 
 
 def _status_rank(flag):
-    order = ("missing_input", "decomposition_required", "parameter_missing", "unresolved_path")
+    order = ("missing_input", "decomposition", "parameter_missing", "unresolved_path")
     for rank, prefix in enumerate(order):
         if flag.startswith(prefix):
             return rank

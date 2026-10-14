@@ -22,7 +22,7 @@ export function formatValue(value, unit, digits) {
 }
 
 export function statusBadge(status) {
-  return ({ live: "CONNECTED", stale: "STALE", disconnected: "DISCONNECTED" })[status] ?? "DISCONNECTED";
+  return ({ live: "연결됨", stale: "지연", disconnected: "연결 끊김" })[status] ?? "연결 끊김";
 }
 
 function forEachNode(root, selector, callback) {
@@ -47,16 +47,16 @@ export function updateLivePanel(root, state, now = Date.now()) {
   root.dataset.connection = status;
   root.dataset.hasData = state.lastReceivedAt === null ? "false" : "true";
   setText(root, "connection", statusBadge(status));
-  setText(root, "source", state.source?.startsWith("mock") ? "LIVE — MOCK DATA" : "LIVE");
-  const updated = state.lastReceivedAt === null ? "—" : new Date(state.lastReceivedAt).toLocaleTimeString();
+  setText(root, "source", state.source?.startsWith("mock") ? "실시간 — 모의 데이터" : "실시간 — 현장");
+  const updated = state.lastReceivedAt === null ? "—" : new Date(state.lastReceivedAt).toLocaleTimeString("en-GB", { hour12: false });
   setText(root, "lastUpdate", updated);
   setText(root, "dataMessage", state.lastReceivedAt === null
-    ? "Waiting for data…"
+    ? "데이터를 기다리는 중…"
     : status === "stale"
-      ? `Last valid update ${updated}`
+      ? `마지막 정상 수신 ${updated}`
       : status === "disconnected"
-        ? `Last valid update ${updated}`
-        : "Live snapshot received");
+        ? `마지막 정상 수신 ${updated}`
+        : "실시간 수신 중");
   for (const [field, [group, key, unit, digits]] of Object.entries(FIELDS)) {
     setText(root, field, formatValue(state[group][key], unit, digits));
   }

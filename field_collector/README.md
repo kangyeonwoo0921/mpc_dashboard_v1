@@ -91,10 +91,10 @@ Unregister-ScheduledTask -TaskName "GreenhouseCollector" -Confirm:$false    # �
 
 ## 5. 연구실 PC·노트북에서 쓰기
 
-`output_dir`이 공유 폴더(`OneDrive - 전북대학교\GreenhouseFieldData`)이면:
+`output_dir`이 공유 폴더(Google Drive `내 드라이브\GreenhouseFieldData`)이면:
 
-- 연구실 PC(운영): `mpc_lab\scriptsun_live_operation.ps1` — 5분마다 일사 예측, `latest_forecast.json`을 같은 폴더에 씀
-- 어느 PC든(시연 포함): `scriptsun_dashboard_live.ps1` — 3D 디지털 트윈이 실제 값과 예측을 표시
+- 연구실 PC(운영): `mpc_lab\scripts\run_live_operation.ps1` — 5분마다 일사 예측, `latest_forecast.json`을 같은 폴더에 씀
+- 어느 PC든(시연 포함): `scripts\run_dashboard_live.ps1` — 3D 디지털 트윈이 실제 값과 예측을 표시
 - 마지막 수집이 3분 넘게 끊기면 실시간 값은 모두 `null`, `connected: false`로 나온다(오래된 값을 현재 값처럼 보여주지 않음).
 - 스크립트 없이 실행하면 대시보드는 지금처럼 mock 데이터다.
 

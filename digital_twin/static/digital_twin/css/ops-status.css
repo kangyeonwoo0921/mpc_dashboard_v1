@@ -1,0 +1,19 @@
+/* Unified status bar shared by the 3D viewer and the recommendation page (js/ops-status.mjs). */
+.ops-status { align-items: center; display: flex; flex-wrap: nowrap; gap: 6px; min-width: 0; overflow: hidden; }
+.ops-chip { align-items: baseline; border: 1px solid #44545d; border-radius: 999px; display: inline-flex; gap: 5px; padding: 3px 10px; white-space: nowrap; }
+.ops-chip small { color: #96a6ae; font-size: 11px; }
+.ops-chip b { font-size: 12px; font-weight: 650; }
+.ops-ok { border-color: rgba(107, 182, 142, .6); }
+.ops-ok b { color: #b6e0c8; }
+.ops-warn { border-color: rgba(212, 170, 92, .7); }
+.ops-warn b { color: #ecd29a; }
+.ops-bad { border-color: rgba(207, 116, 120, .75); }
+.ops-bad b { color: #f0b6b8; }
+.ops-info b { color: #d3dde1; }
+.ops-overall { padding: 3px 12px; }
+.ops-overall.ops-ok { background: rgba(107, 182, 142, .14); }
+.ops-overall.ops-warn { background: rgba(212, 170, 92, .14); }
+.ops-overall.ops-bad { background: rgba(207, 116, 120, .16); }
+.ops-mode { border-style: dashed; }
+.ops-mode b { color: #96a6ae; font-weight: 500; }
+

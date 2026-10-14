@@ -1,87 +1,94 @@
 {% load static %}
 <!doctype html>
-<html lang="en">
+<html lang="ko">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Greenhouse Digital Twin</title>
+  <title>온실 디지털 트윈</title>
   <link rel="stylesheet" href="{{ css_viewer_url }}">
   <link rel="stylesheet" href="{{ css_live_panel_url }}">
+  <link rel="stylesheet" href="{{ css_ops_url }}">
 </head>
 <body>
   <main class="viewer-shell" id="digital-twin-viewer" data-model-url="{{ model_url }}">
-    <canvas id="greenhouse-canvas" aria-label="Interactive greenhouse 3D model"></canvas>
+    <canvas id="greenhouse-canvas" aria-label="온실 3D 모델"></canvas>
 
     <header class="viewer-header">
       <div class="viewer-brand">
         <span class="viewer-mark" aria-hidden="true"></span>
-        <div><h1>Greenhouse Digital Twin</h1><p>Phase 1.8.1 · Spatial navigation</p></div>
+        <div><h1>온실 디지털 트윈</h1><p>실시간 3D · 일사 예측 · 스크린 추천</p></div>
       </div>
-      <div class="header-status" aria-label="LIVE connection status">
-        <span class="status-badge status-badge--source" data-header-field="source">MOCK DATA</span>
-        <span class="status-badge" data-header-field="connection" data-status="disconnected">DISCONNECTED</span>
-        <span class="header-update">Updated <time data-header-field="lastUpdate">—</time></span>
-        <span class="safety-label">LOCAL · NO FIELD CONTROL</span>
+      <div class="header-status">
+        <div class="ops-status" id="ops-status" aria-label="시스템 상태" aria-live="polite"></div>
+        <a class="header-link" href="/recommendation/">추천 상세 →</a>
       </div>
     </header>
 
-    <div class="viewer-message" id="viewer-message" role="status">Loading greenhouse model…</div>
+    <div class="viewer-message" id="viewer-message" role="status">온실 모델을 불러오는 중…</div>
 
-    <nav class="spatial-selector" aria-label="Greenhouse span selection">
-      <span>Greenhouse</span>
-      <div role="group" aria-label="Spatial context">
-        <button type="button" data-span-select="ALL" aria-pressed="true">ALL</button>
-        <button type="button" data-span-select="S01" aria-pressed="false">S1</button>
-        <button type="button" data-span-select="S02" aria-pressed="false">S2</button>
-        <button type="button" data-span-select="S03" aria-pressed="false">S3</button>
-        <button type="button" data-span-select="S04" aria-pressed="false">S4</button>
+    <nav class="spatial-selector" aria-label="동 선택">
+      <span>보기 범위</span>
+      <div role="group" aria-label="동 선택">
+        <button type="button" data-span-select="ALL" aria-pressed="true">전체</button>
+        <button type="button" data-span-select="S01" aria-pressed="false">1동</button>
+        <button type="button" data-span-select="S02" aria-pressed="false">2동</button>
+        <button type="button" data-span-select="S03" aria-pressed="false">3동</button>
+        <button type="button" data-span-select="S04" aria-pressed="false">4동</button>
       </div>
     </nav>
 
+    <aside class="ops-panel" id="ops-panel" data-collapsed="false" aria-label="운영 요약">
+      <header>
+        <div><h2>운영 요약</h2><span class="ops-updated" data-ops-updated>—</span></div>
+        <button type="button" class="icon-button" data-ops-collapse aria-expanded="true" aria-label="운영 요약 접기">−</button>
+      </header>
+      <div class="ops-body" data-ops-body><p class="ops-message">추천 정보를 불러오는 중…</p></div>
+    </aside>
+
     <div class="live-panel-position">{% include "digital_twin/_live_panel.html" %}</div>
 
-    <section class="display-controls" aria-label="Scene display controls">
+    <section class="display-controls" aria-label="화면 표시 설정">
       <div class="display-control-group">
-        <span>Layers</span>
-        <label><input type="checkbox" data-layer="cover" checked><b>Cover</b></label>
-        <label><input type="checkbox" data-layer="crops" checked><b>Crops</b></label>
-        <label><input type="checkbox" data-layer="equipment" checked><b>Equipment</b></label>
-        <label><input type="checkbox" data-layer="sensors" checked><b>Sensors</b></label>
+        <span>레이어</span>
+        <label><input type="checkbox" data-layer="cover" checked><b>피복</b></label>
+        <label><input type="checkbox" data-layer="crops" checked><b>작물</b></label>
+        <label><input type="checkbox" data-layer="equipment" checked><b>설비</b></label>
+        <label><input type="checkbox" data-layer="sensors" checked><b>센서</b></label>
       </div>
       <div class="display-control-group">
-        <span>Overlays</span>
-        <label><input type="checkbox" data-overlay="controlState"><b>Control State</b></label>
-        <label><input type="checkbox" data-overlay="labels" checked><b>Labels</b></label>
+        <span>표시</span>
+        <label><input type="checkbox" data-overlay="controlState"><b>제어 상태</b></label>
+        <label><input type="checkbox" data-overlay="labels" checked><b>이름표</b></label>
       </div>
       <div class="display-control-group">
-        <span>Sun</span>
-        <label><input type="checkbox" data-solar="sun" checked><b>Sun &amp; Shadow</b></label>
-        <label><input type="checkbox" data-solar="lightMap"><b>Light Map</b></label>
+        <span>태양</span>
+        <label><input type="checkbox" data-solar="sun" checked><b>태양·그림자</b></label>
+        <label><input type="checkbox" data-solar="lightMap"><b>일조 지도</b></label>
       </div>
       <div class="display-control-group solar-time">
-        <span>Time</span>
-        <input type="range" min="300" max="1260" step="10" value="720" data-solar-time aria-label="Time of day (clear-sky model)">
-        <button type="button" data-solar-now aria-pressed="true">Now</button>
-        <output data-solar-readout title="Modelled canopy light; visual aid, not validated">—</output>
+        <span>하루 시각</span>
+        <input type="range" min="300" max="1260" step="10" value="720" data-solar-time aria-label="하루 중 시각 (태양 위치)">
+        <button type="button" data-solar-now aria-pressed="true">지금</button>
       </div>
+      <output class="solar-readout" data-solar-readout title="태양 위치는 계산값, 작물면 빛은 추정값입니다">—</output>
     </section>
 
-    <nav class="viewer-toolbar" aria-label="Camera and navigation controls">
-      <div class="view-presets" role="group" aria-label="Camera presets">
-        <button type="button" data-view-preset="overview" aria-pressed="true">Overview</button>
-        <button type="button" data-view-preset="front" aria-pressed="false">Front</button>
-        <button type="button" data-view-preset="rear" aria-pressed="false">Rear</button>
-        <button type="button" data-view-preset="roof" aria-pressed="false">Roof</button>
-        <button type="button" data-view-preset="interior" aria-pressed="false">Interior</button>
-        <button type="button" data-view-preset="equipment" aria-pressed="false">Equipment</button>
-        <button type="button" data-view-preset="control" aria-pressed="false">Control</button>
+    <nav class="viewer-toolbar" aria-label="시점 이동">
+      <div class="view-presets" role="group" aria-label="시점">
+        <button type="button" data-view-preset="overview" aria-pressed="true">전체</button>
+        <button type="button" data-view-preset="front" aria-pressed="false">앞면</button>
+        <button type="button" data-view-preset="rear" aria-pressed="false">뒷면</button>
+        <button type="button" data-view-preset="roof" aria-pressed="false">지붕</button>
+        <button type="button" data-view-preset="interior" aria-pressed="false">내부</button>
+        <button type="button" data-view-preset="equipment" aria-pressed="false">설비</button>
+        <button type="button" data-view-preset="control" aria-pressed="false">제어 장치</button>
       </div>
       <div class="toolbar-actions">
-        <button type="button" id="reset-view">Reset Camera</button>
-        <button type="button" id="fit-selected">Fit Selected</button>
-        <button type="button" id="back-overview">Back to Overview</button>
-        <button type="button" id="fullscreen-toggle">Fullscreen</button>
-        <button type="button" id="developer-toggle" aria-expanded="false">Developer</button>
+        <button type="button" id="reset-view">시점 초기화</button>
+        <button type="button" id="fit-selected">선택 확대</button>
+        <button type="button" id="back-overview">전체 보기로</button>
+        <button type="button" id="fullscreen-toggle">전체 화면</button>
+        <button type="button" id="developer-toggle" aria-expanded="false">개발자</button>
       </div>
     </nav>
 

@@ -2,7 +2,7 @@ import { displayTitle } from "./interaction-runtime.mjs";
 import { formatValue, statusBadge } from "./live-panel.mjs";
 import { mappedAssetContext } from "./live-config.mjs";
 
-export const HISTORY_EMPTY_MESSAGE = "History is not available in the current mock-only phase. Historical logging will be added with the live data bridge.";
+export const HISTORY_EMPTY_MESSAGE = "기록 보기는 아직 없습니다. 현장 데이터 기록이 쌓이면 추가합니다.";
 
 function percent(value) {
   return typeof value === "number" && Number.isFinite(value) ? `${value.toFixed(1)}%` : "—";
@@ -10,24 +10,24 @@ function percent(value) {
 
 function sourceLabel(state) {
   if (!state?.source) return "—";
-  return state.source.startsWith("mock") ? "MOCK" : state.source.toUpperCase();
+  return state.source.startsWith("mock") ? "모의 데이터" : state.source === "field_collector" ? "현장 수집" : state.source.toUpperCase();
 }
 
 function updatedLabel(state) {
-  return state?.lastReceivedAt == null ? "—" : new Date(state.lastReceivedAt).toLocaleTimeString();
+  return state?.lastReceivedAt == null ? "—" : new Date(state.lastReceivedAt).toLocaleTimeString("en-GB", { hour12: false });
 }
 
 function connectionLabel(state, now = Date.now()) {
-  return typeof state?.connectionStatus === "function" ? statusBadge(state.connectionStatus(now)) : "DISCONNECTED";
+  return typeof state?.connectionStatus === "function" ? statusBadge(state.connectionStatus(now)) : statusBadge("disconnected");
 }
 
 function spanActuatorRows(spanAssets, state) {
-  return [["roof_vent", "Roof Vent"], ["shade_screen", "Shade Screen"],
-    ["diffuse_screen", "Diffuse Screen"], ["side_curtain", "Side Curtain"]].map(([type, label]) => {
+  return [["roof_vent", "천창"], ["shade_screen", "차광 스크린"],
+    ["diffuse_screen", "산광 스크린"], ["side_curtain", "측창 커튼"]].map(([type, label]) => {
     const entry = spanAssets.find((asset) => asset.type === type);
     const context = mappedAssetContext(entry, state);
     return { label, value: percent(context.openingPercent),
-      note: context.channel ? context.channel + " · " + context.mappingStatus : "Not span-mapped" };
+      note: context.channel ? context.channel + " · " + context.mappingStatus : "동별 연결 없음" };
   });
 }
 
@@ -35,100 +35,104 @@ function assetDetails(entry) {
   if (!entry) return [];
   const metadata = entry.owner.userData ?? {};
   const fields = [
-    ["Name", entry.owner.name],
-    ["Asset type", metadata.asset_type],
-    ["Span index", metadata.span_index],
-    ["Control variable", metadata.control_variable],
-    ["Visual opening", typeof metadata.opening_percent === "number" ? `${metadata.opening_percent.toFixed(1)}%` : null],
-    ["Source confidence", metadata.source_confidence],
-    ["Geometry confidence", metadata.geometry_confidence],
-    ["Position confidence", metadata.position_confidence],
-    ["Verified position", typeof metadata.verified_position === "boolean" ? String(metadata.verified_position) : null],
-    ["PLC tag verified", typeof metadata.plc_tag_verified === "boolean" ? String(metadata.plc_tag_verified) : null],
+    ["이름", entry.owner.name],
+    ["종류", metadata.asset_type],
+    ["동 번호", metadata.span_index],
+    ["제어 변수", metadata.control_variable],
+    ["표시 개도", typeof metadata.opening_percent === "number" ? `${metadata.opening_percent.toFixed(1)}%` : null],
+    ["출처 신뢰도", metadata.source_confidence],
+    ["형상 신뢰도", metadata.geometry_confidence],
+    ["위치 신뢰도", metadata.position_confidence],
+    ["위치 확인", typeof metadata.verified_position === "boolean" ? String(metadata.verified_position) : null],
+    ["PLC 태그 확인", typeof metadata.plc_tag_verified === "boolean" ? String(metadata.plc_tag_verified) : null],
   ];
   return fields.filter(([, value]) => value !== null && value !== undefined && value !== "").map(([label, value]) => ({ label, value: String(value) }));
 }
 
 export function buildContextModel({ selection, liveState, assetEntry = null, assetContext = {}, spanAssets = [], now = Date.now() }) {
   const connection = connectionLabel(liveState, now);
+  const connectionStatus = typeof liveState?.connectionStatus === "function" ? liveState.connectionStatus(now) : "disconnected";
   const source = sourceLabel(liveState);
   const updated = updatedLabel(liveState);
   if (selection.level === "greenhouse") {
     return {
-      title: "GREENHOUSE OVERVIEW",
-      breadcrumb: [{ level: "greenhouse", label: "Greenhouse" }],
+      title: "온실 전체",
+      breadcrumb: [{ level: "greenhouse", label: "온실" }],
       sections: [
-        { title: "Environment", rows: [
-          { label: "Indoor Temperature", value: formatValue(liveState?.environment?.indoor_temperature_c, "°C", 1) },
-          { label: "Relative Humidity", value: formatValue(liveState?.environment?.indoor_rh_pct, "%", 1) },
-          { label: "Solar Radiation", value: formatValue(liveState?.environment?.solar_w_m2, "W/m²", 0) },
+        { title: "환경", rows: [
+          { label: "실내 온도", value: formatValue(liveState?.environment?.indoor_temperature_c, "°C", 1) },
+          { label: "실내 습도", value: formatValue(liveState?.environment?.indoor_rh_pct, "%", 1) },
+          { label: "외부 일사 (센서)", value: formatValue(liveState?.environment?.solar_w_m2, "W/m²", 0) },
         ] },
-        { title: "System", rows: [
-          { label: "Status", value: connection },
-          { label: "Data Source", value: source },
-          { label: "Last Update", value: updated },
-          { label: "Alerts", value: "Not configured" },
+        { title: "시스템", rows: [
+          { label: "연결 상태", value: connection },
+          { label: "데이터 출처", value: source },
+          { label: "마지막 수신", value: updated },
+          { label: "알림", value: "미설정" },
         ] },
       ],
       details: [],
-      detailsMessage: "Select a span or asset to inspect spatial metadata.",
+      detailsMessage: "동이나 장치를 선택하면 상세 정보가 보입니다.",
       source,
       connection,
+      connectionStatus,
       updated,
-      liveMessage: liveState?.lastReceivedAt == null ? "Waiting for data…" : null,
+      liveMessage: liveState?.lastReceivedAt == null ? "데이터를 기다리는 중…" : null,
     };
   }
 
   if (selection.level === "span") {
-    const label = `Span ${selection.spanId.slice(1)}`;
+    const label = `${Number(selection.spanId.slice(1))}동`;
     return {
       title: label.toUpperCase(),
       breadcrumb: [
-        { level: "greenhouse", label: "Greenhouse" },
+        { level: "greenhouse", label: "온실" },
         { level: "span", spanId: selection.spanId, label },
       ],
       sections: [
-        { title: "Actuators", rows: spanActuatorRows(spanAssets, liveState) },
-        { title: "Representative Environment", note: "House-level sensor · Not span-specific", rows: [
-          { label: "Indoor Temperature", value: formatValue(liveState?.environment?.indoor_temperature_c, "°C", 1) },
-          { label: "Relative Humidity", value: formatValue(liveState?.environment?.indoor_rh_pct, "%", 1) },
+        { title: "장치", rows: spanActuatorRows(spanAssets, liveState) },
+        { title: "대표 환경", note: "온실 전체 센서 1개 · 동별 값이 아닙니다", rows: [
+          { label: "실내 온도", value: formatValue(liveState?.environment?.indoor_temperature_c, "°C", 1) },
+          { label: "실내 습도", value: formatValue(liveState?.environment?.indoor_rh_pct, "%", 1) },
           { label: "VPD", value: formatValue(liveState?.environment?.vpd_kpa, "kPa", 3) },
         ] },
       ],
-      details: [{ label: "Spatial context", value: selection.spanId }, { label: "Environment scope", value: "House-level representative" }],
+      details: [{ label: "공간", value: selection.spanId }, { label: "환경 범위", value: "온실 대표값" }],
       source,
       connection,
+      connectionStatus,
       updated,
     };
   }
 
   const owner = assetEntry?.owner;
-  const spanLabel = selection.spanId ? `Span ${selection.spanId.slice(1)}` : null;
-  const title = owner ? displayTitle(owner, assetEntry.type) : selection.assetId ?? "Asset";
-  const breadcrumb = [{ level: "greenhouse", label: "Greenhouse" }];
+  const spanLabel = selection.spanId ? `${Number(selection.spanId.slice(1))}동` : null;
+  const title = owner ? displayTitle(owner, assetEntry.type) : selection.assetId ?? "장치";
+  const breadcrumb = [{ level: "greenhouse", label: "온실" }];
   if (selection.spanId) breadcrumb.push({ level: "span", spanId: selection.spanId, label: spanLabel });
   breadcrumb.push({ level: "asset", label: title });
   const liveRows = [];
-  if (typeof assetContext.openingPercent === "number") liveRows.push({ label: "Opening", value: percent(assetContext.openingPercent) });
-  if (owner?.userData?.control_variable) liveRows.push({ label: "Control", value: owner.userData.control_variable });
-  if (selection.spanId) liveRows.push({ label: "Span", value: selection.spanId });
-  if (assetContext.channel) liveRows.push({ label: "Mapped Channel", value: assetContext.channel });
-  if (assetContext.channel) liveRows.push({ label: "Source", value: source });
-  if (assetContext.channel) liveRows.push({ label: "Last Update", value: updated });
-  if (assetContext.mappingStatus) liveRows.push({ label: "Mapping", value: assetContext.mappingStatus });
+  if (typeof assetContext.openingPercent === "number") liveRows.push({ label: "열림", value: percent(assetContext.openingPercent) });
+  if (owner?.userData?.control_variable) liveRows.push({ label: "제어 변수", value: owner.userData.control_variable });
+  if (selection.spanId) liveRows.push({ label: "동", value: selection.spanId });
+  if (assetContext.channel) liveRows.push({ label: "연결 채널", value: assetContext.channel });
+  if (assetContext.channel) liveRows.push({ label: "출처", value: source });
+  if (assetContext.channel) liveRows.push({ label: "마지막 수신", value: updated });
+  if (assetContext.mappingStatus) liveRows.push({ label: "연결 상태", value: assetContext.mappingStatus });
   if (!assetContext.channel && owner?.userData?.control_variable) {
-    liveRows.push({ label: "LIVE mapping", value: "Not configured" });
+    liveRows.push({ label: "실시간 연결", value: "미설정" });
   }
   return {
     title: title.toUpperCase(),
     breadcrumb,
-    sections: liveRows.length ? [{ title: "LIVE Asset State", rows: liveRows }] : [],
+    sections: liveRows.length ? [{ title: "실시간 장치 상태", rows: liveRows }] : [],
     liveMessage: liveRows.length ? null : assetEntry?.type === "crop_zone"
-      ? "Crop Zone is available for focus and visibility only. No crop analytics are configured."
-      : "No verified LIVE mapping is available for this asset.",
+      ? "재배 구역은 보기·확대만 지원합니다. 작물 분석은 없습니다."
+      : "확인된 실시간 연결이 없는 장치입니다.",
     details: assetDetails(assetEntry),
     source,
     connection,
+    connectionStatus,
     updated,
   };
 }
@@ -171,7 +175,7 @@ export class ContextPanelRuntime {
       const collapsed = root.dataset.collapsed !== "true";
       root.dataset.collapsed = String(collapsed);
       event.currentTarget.setAttribute("aria-expanded", String(!collapsed));
-      event.currentTarget.setAttribute("aria-label", collapsed ? "Expand Context Panel" : "Collapse Context Panel");
+      event.currentTarget.setAttribute("aria-label", collapsed ? "패널 펼치기" : "패널 접기");
     });
   }
 
@@ -189,10 +193,10 @@ export class ContextPanelRuntime {
     const source = this.root.querySelector('[data-live-field="source"]');
     const connection = this.root.querySelector('[data-live-field="connection"]');
     const updated = this.root.querySelector('[data-live-field="lastUpdate"]');
-    if (source) source.textContent = model.source === "MOCK" ? "LIVE — MOCK DATA" : model.source;
+    if (source) source.textContent = `실시간 — ${model.source}`;
     if (connection) connection.textContent = model.connection;
     if (updated) updated.textContent = model.updated;
-    this.root.dataset.connection = model.connection.toLowerCase();
+    this.root.dataset.connection = model.connectionStatus;
 
     const breadcrumb = this.root.querySelector("[data-context-breadcrumb]");
     breadcrumb.replaceChildren();
@@ -218,7 +222,7 @@ export class ContextPanelRuntime {
     if (this.activeTab === "history") {
       const empty = document.createElement("div");
       empty.className = "context-empty";
-      empty.innerHTML = "<strong>History unavailable</strong>";
+      empty.append(Object.assign(document.createElement("strong"), { textContent: "기록 없음" }));
       const text = document.createElement("p");
       text.textContent = HISTORY_EMPTY_MESSAGE;
       empty.append(text);
@@ -230,7 +234,7 @@ export class ContextPanelRuntime {
       else {
         const message = document.createElement("p");
         message.className = "context-message";
-        message.textContent = model.detailsMessage ?? "No additional metadata is available.";
+        message.textContent = model.detailsMessage ?? "추가 정보가 없습니다.";
         content.append(message);
       }
       return;

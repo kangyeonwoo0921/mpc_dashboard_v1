@@ -13,6 +13,9 @@ Sources (read-only, `../markdown/`):
 
 ## Status
 
+**Scope revised 2026-10-12** (`docs/SCOPE_REVISION.md`): GHI-forecast-based screen recommendations and web
+information are in scope; the temperature/humidity physics MPC below is kept as future work.
+
 | Phase | Content | State |
 |---|---|---|
 | 2.0 Repository isolation | `docs/PROTECTED_PATHS.md` | done |

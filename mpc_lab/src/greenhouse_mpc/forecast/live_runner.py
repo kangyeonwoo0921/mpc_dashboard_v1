@@ -87,13 +87,22 @@ def _payload(now, status, reason=None, **extra):
             **extra}
 
 
+def recent_observations(frame, issue, bins=12):
+    """Measured 5-min GHI of the last ``bins`` bins up to the issue bin (for the screen recommendation and
+    the dashboard chart). ``ghi`` is null unless the bin's status is ``observed``."""
+    window = frame.loc[:issue].tail(bins)
+    return [{"time": t.isoformat(), "ghi_w_m2": None if s != "observed" or pd.isna(v) else round(float(v), 1),
+             "status": s} for t, v, s in zip(window.index, window.ghi, window.ghi_status)]
+
+
 def forecast_payload(config, table, now, paths, max_age_min):
     """Forecast for the last complete bin, as the dashboard/MPC payload."""
     issue = last_complete_bin(now, int(config.value("time_step_min")))
     frame = table.set_index("timestamp")
     received = frame.index[frame.ghi_input_status.ne("missing")]
     newest = received.max() if len(received) else None
-    base = {"issue_time": issue.isoformat(), "data_last_timestamp": None if newest is None or pd.isna(newest) else newest.isoformat()}
+    base = {"issue_time": issue.isoformat(), "data_last_timestamp": None if newest is None or pd.isna(newest) else newest.isoformat(),
+            "recent_observations": recent_observations(frame, issue)}
     if newest is None or pd.isna(newest) or newest < pd.Timestamp(now) - pd.Timedelta(minutes=max_age_min):
         return _payload(now, "unavailable", "data_stale", horizons=None, **base)
     if issue not in frame.index:

@@ -59,17 +59,17 @@ test("Greenhouse to span to asset to breadcrumb parent has one selection state",
 test("context uses house environment, real mapping, no sensor readings or fake history", () => {
   const base = { liveState: live, now: 1500 };
   const house = buildContextModel({...base,selection:{level:"greenhouse"}});
-  assert.ok(!JSON.stringify(house.sections).includes("Roof Vent"));
-  assert.ok(JSON.stringify(house).includes("Not configured"));
+  assert.ok(!JSON.stringify(house.sections).includes("천창"));
+  assert.ok(JSON.stringify(house).includes("미설정"));
   const span = buildContextModel({...base,selection:{level:"span",spanId:"S02"},spanAssets:registry.spanRegistry.S02.assets});
-  assert.ok(JSON.stringify(span).includes("House-level sensor · Not span-specific"));
+  assert.ok(JSON.stringify(span).includes("온실 전체 센서 1개 · 동별 값이 아닙니다"));
   assert.equal(span.sections[0].rows[0].value, "72.0%");
   assert.equal(span.sections[0].rows[3].value, "—");
   const sensor = registry.getAsset("GH_SENSOR_T_RH_01");
   const model = buildContextModel({...base,selection:{level:"asset",assetId:sensor.id},assetEntry:sensor,assetContext:mappedAssetContext(sensor,live)});
   assert.equal(model.sections.length,0);
-  assert.ok(model.liveMessage.includes("No verified LIVE mapping"));
-  assert.ok(HISTORY_EMPTY_MESSAGE.includes("not available"));
+  assert.ok(model.liveMessage.includes("확인된 실시간 연결이 없는"));
+  assert.ok(HISTORY_EMPTY_MESSAGE.includes("아직 없습니다"));
 });
 
 test("span dimming caches variants, restores shared originals, leaves transforms unchanged", () => {

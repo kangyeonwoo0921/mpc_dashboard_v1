@@ -71,8 +71,8 @@ export function mappedAssetContext(entry, state) {
       return {
         openingPercent: typeof value === "number" && Number.isFinite(value) ? value : null,
         channel: CHANNEL_LABELS[key],
-        mappingStatus: mapping.provisional ? "Provisional" : "Mapped",
-        mappingNote: mapping.provisional ? "Provisional " + CHANNEL_LABELS[key] + " mapping" : null,
+        mappingStatus: mapping.provisional ? "잠정" : "연결됨",
+        mappingNote: mapping.provisional ? CHANNEL_LABELS[key] + " 연결 잠정" : null,
       };
     }
   }

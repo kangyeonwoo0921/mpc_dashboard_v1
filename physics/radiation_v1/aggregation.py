@@ -29,4 +29,8 @@ def summarize(results, cells):
     summary["missing_cell_fraction"] = sum(a for r, a in zip(results, areas) if r.total_W_m2 is None) / total_area
     for part in ("direct", "diffuse"):
         summary[f"{part}_mean_W_m2"] = area_weighted([getattr(r, f"{part}_W_m2") for r in results], areas)["mean_W_m2"]
+    # Direct beam over the cells it could be resolved for (unknown side/end wall optics leave gaps).
+    known = [(r.direct_W_m2, a) for r, a in zip(results, areas) if r.direct_W_m2 is not None]
+    summary["direct_resolved_fraction"] = sum(a for _, a in known) / total_area
+    summary["direct_resolved_mean_W_m2"] = area_weighted([v for v, _ in known], [a for _, a in known])["mean_W_m2"]
     return summary

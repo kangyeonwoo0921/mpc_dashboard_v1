@@ -37,15 +37,15 @@ export class LabelRuntime {
     const title = this.root.querySelector("[data-label-title]");
     const value = this.root.querySelector("[data-label-value]");
     if (selection.level === "span") {
-      title.textContent = `Span ${selection.spanId.slice(1)}`;
-      value.textContent = "Selected span";
+      title.textContent = `${Number(selection.spanId.slice(1))}동`;
+      value.textContent = "선택한 동";
     } else {
       title.textContent = entry ? displayTitle(entry.owner, entry.type) : selection.assetId;
       value.textContent = typeof context.openingPercent === "number"
         ? `${context.openingPercent.toFixed(1)}%`
         : entry?.type === "sensor"
-          ? (entry.owner.userData?.verified_position === true ? "Position verified" : "Position unverified")
-          : "Selected asset";
+          ? (entry.owner.userData?.verified_position === true ? "위치 확인됨" : "위치 미확인")
+          : "선택한 장치";
     }
     this.root.hidden = false;
   }

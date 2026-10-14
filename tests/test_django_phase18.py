@@ -20,7 +20,7 @@ class DigitalTwinPhase18Tests(SimpleTestCase):
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
         text = response.content.decode("utf-8")
-        for label in ("Overview", "Front", "Rear", "Roof", "Interior", "Equipment", "Control", "Reset", "Developer"):
+        for label in ("전체", "앞면", "뒷면", "지붕", "내부", "설비", "제어 장치", "시점 초기화", "개발자", 'id="ops-panel"', 'id="ops-status"'):
             self.assertIn(label, text)
         self.assertIn('id="developer-drawer"', text)
         self.assertIn('aria-hidden="true"', text)

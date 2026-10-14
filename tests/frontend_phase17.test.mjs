@@ -154,7 +154,7 @@ test("LIVE panel renders mock values and stale state without source-specific key
   }, 1000);
   updateLivePanel(root, state, 2000);
   assert.equal(root.dataset.connection, "live");
-  assert.equal(nodes.get("source").textContent, "LIVE — MOCK DATA");
+  assert.equal(nodes.get("source").textContent, "실시간 — 모의 데이터");
   assert.equal(nodes.get("indoorTemperature").textContent, "28.8 °C");
   assert.equal(nodes.get("roofVentLeft").textContent, "42.2 %");
   updateLivePanel(root, state, 12000);

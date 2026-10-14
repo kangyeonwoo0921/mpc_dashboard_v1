@@ -11,7 +11,7 @@ export const SCENE_COLORS = Object.freeze({
 
 export const CAMERA_PRESETS = Object.freeze({
   overview: Object.freeze({
-    label: "Overview",
+    label: "전체",
     mode: "fit",
     focus: "model",
     direction: Object.freeze([1, 0.62, 0.92]),
@@ -19,7 +19,7 @@ export const CAMERA_PRESETS = Object.freeze({
     margin: CAMERA_FIT_MARGIN,
   }),
   front: Object.freeze({
-    label: "Front",
+    label: "앞면",
     mode: "fit",
     focus: "model",
     direction: Object.freeze([-1, 0.08, 0]),
@@ -27,7 +27,7 @@ export const CAMERA_PRESETS = Object.freeze({
     margin: 1.18,
   }),
   rear: Object.freeze({
-    label: "Rear",
+    label: "뒷면",
     mode: "fit",
     focus: "model",
     direction: Object.freeze([1, 0.08, 0]),
@@ -35,7 +35,7 @@ export const CAMERA_PRESETS = Object.freeze({
     margin: 1.18,
   }),
   roof: Object.freeze({
-    label: "Roof",
+    label: "지붕",
     mode: "fit",
     focus: "model",
     direction: Object.freeze([0.34, 1.75, 0.52]),
@@ -43,13 +43,13 @@ export const CAMERA_PRESETS = Object.freeze({
     margin: 1.1,
   }),
   interior: Object.freeze({
-    label: "Interior",
+    label: "내부",
     mode: "interior",
     focus: "interior",
     visibility: "interior",
   }),
   equipment: Object.freeze({
-    label: "Equipment",
+    label: "설비",
     mode: "fit",
     focus: "equipment",
     direction: Object.freeze([-1, 0.48, 0.9]),
@@ -57,7 +57,7 @@ export const CAMERA_PRESETS = Object.freeze({
     margin: 1.45,
   }),
   control: Object.freeze({
-    label: "Control",
+    label: "제어 장치",
     mode: "fit",
     focus: "controls",
     direction: Object.freeze([0.55, 1.15, 0.82]),
@@ -145,22 +145,22 @@ export const SPAN_EMPHASIS_ASSET_TYPES = Object.freeze(new Set([
 ]));
 
 export const ASSET_LABELS = Object.freeze({
-  roof_vent: "Roof Vent",
-  shade_screen: "Shade Screen",
-  diffuse_screen: "Diffuse Screen",
-  side_curtain: "Side Curtain",
-  sensor: "Sensor",
-  sensor_anchor: "Sensor Anchor",
-  crop_bed: "Crop Zone",
-  tank: "Tank",
-  pump: "Feed Pump",
-  blower: "Ring Blower",
-  filter: "Filter",
-  control_panel: "Control Panel",
-  purifier: "Water Purifier",
-  flow_meter: "Flow Meter",
-  pressure_gauge: "Pressure Gauge",
-  valve: "Valve",
+  roof_vent: "천창",
+  shade_screen: "차광 스크린",
+  diffuse_screen: "산광 스크린",
+  side_curtain: "측창 커튼",
+  sensor: "센서",
+  sensor_anchor: "센서 거치대",
+  crop_bed: "재배 구역",
+  tank: "탱크",
+  pump: "양액 펌프",
+  blower: "링 블로워",
+  filter: "필터",
+  control_panel: "제어반",
+  purifier: "정수기",
+  flow_meter: "유량계",
+  pressure_gauge: "압력계",
+  valve: "밸브",
 });
 
 export const VIEWER_UI_CONFIG = Object.freeze({

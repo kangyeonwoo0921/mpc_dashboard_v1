@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>스크린 제어 추천</title>
+  <link rel="stylesheet" href="{{ css_url }}">
+  <link rel="stylesheet" href="{{ css_ops_url }}">
+</head>
+<body>
+  <header class="rec-header">
+    <div class="rec-brand">
+      <span class="rec-mark" aria-hidden="true"></span>
+      <div>
+        <h1>스크린 제어 추천</h1>
+        <p>일사 예측 기반 규칙 추천 · <time id="updated-at">—</time> 기준</p>
+      </div>
+    </div>
+    <div class="rec-header-status">
+      <div class="ops-status" id="ops-status" aria-label="시스템 상태" aria-live="polite"></div>
+      <a class="rec-link" href="/">3D 디지털 트윈 →</a>
+    </div>
+  </header>
+
+  <main class="rec-main">
+    <section class="now" aria-labelledby="now-title">
+      <h2 id="now-title" class="section-title">지금 할 일</h2>
+      <div class="rec-cards">
+        <article class="card screen-card" id="card-shade_screen"></article>
+        <article class="card screen-card" id="card-diffuse_screen"></article>
+      </div>
+      <ul class="advisories" id="advisories" aria-label="알림"></ul>
+    </section>
+
+    <div class="rec-grid">
+      <section class="card chart-card" aria-label="일사 실측과 예측">
+        <div class="card-head">
+          <h2>일사 · 최근 1시간 실측과 앞으로 1시간 예측</h2>
+          <div class="legend">
+            <span class="lg lg-obs">실측</span><span class="lg lg-fc">예측</span>
+            <span class="lg lg-clear">맑은 날 기준</span><span class="lg lg-thr">차광 기준</span>
+          </div>
+        </div>
+        <div id="chart" class="chart" role="img" aria-label="일사 그래프"></div>
+        <p class="muted small" id="chart-note"></p>
+      </section>
+
+      <section class="card chart-card" aria-label="앞으로 60분 추천 계획">
+        <div class="card-head">
+          <h2>앞으로 60분 추천 계획 (열림 %)</h2>
+          <div class="legend">
+            <span class="lg lg-shade">차광커튼2</span><span class="lg lg-diffuse">차광커튼1</span>
+            <span class="lg lg-now">○ 현재 위치</span>
+          </div>
+        </div>
+        <div id="plan-chart" class="chart plan-chart" role="img" aria-label="추천 계획 그래프"></div>
+        <p class="muted small">계획은 예측만 사용합니다 (미래 실측은 알 수 없음). 최소 유지 시간을 지키며 계산합니다.</p>
+      </section>
+
+      <section class="card" aria-label="현재 조건">
+        <h2>현재 조건</h2>
+        <div class="rec-summary">
+          <div class="chip"><span>현재 일사 (센서)</span><strong id="sum-ghi">—</strong></div>
+          <div class="chip"><span>외기 온도</span><strong id="sum-tout">—</strong></div>
+          <div class="chip"><span>일출 · 일몰</span><strong id="sum-sun">—</strong></div>
+          <div class="chip"><span>운영 모드</span><strong id="sum-mode">—</strong></div>
+          <div class="chip"><span>생육 단계</span><strong id="sum-stage">—</strong></div>
+          <div class="chip"><span>정식 후</span><strong id="sum-days">—</strong></div>
+        </div>
+        <p class="guide-note" id="guide-note"></p>
+      </section>
+
+      <section class="card" aria-label="작물면 빛 추정">
+        <h2>작물면 빛 (추정)</h2>
+        <p class="crop-main" id="crop-main">—</p>
+        <dl class="crop-rows" id="crop-rows"></dl>
+        <p class="muted small">외부 일사(GHI)를 Engerer2 모델로 직달·산란으로 나눈 뒤 3D 형상으로 직달광만 추적한 추정값입니다.
+          피복·스크린의 산란 투과율이 아직 없어 산란광은 포함하지 않습니다.</p>
+      </section>
+    </div>
+
+    <details class="card settings-card" id="settings-card">
+      <summary>
+        <span class="settings-title">운영 설정</span>
+        <span class="muted small" id="settings-updated"></span>
+      </summary>
+      <p class="muted small">설정은 서버에 저장되어 모든 사용자가 같은 값을 봅니다. 값을 바꾸면 추천만 달라지고 장치는 움직이지 않습니다.
+        <span class="tag tag-prov">잠정</span> 표시는 현장 확인 전 값입니다.</p>
+      <form id="settings-form" novalidate></form>
+      <div class="settings-actions">
+        <label class="inline">변경자 <input id="changed-by" type="text" maxlength="40" placeholder="이름 (선택)"></label>
+        <label class="inline grow">메모 <input id="change-note" type="text" maxlength="200" placeholder="변경 이유 (선택)"></label>
+        <button type="button" class="btn" id="btn-reset-all">전체 기본값</button>
+        <button type="button" class="btn btn-primary" id="btn-save" disabled>저장</button>
+      </div>
+      <p class="form-message" id="form-message" role="status"></p>
+      <details class="history">
+        <summary>변경 기록</summary>
+        <ul id="history"></ul>
+      </details>
+    </details>
+  </main>
+
+  <script type="importmap">{{ import_map|safe }}</script>
+  <script type="module" src="{{ js_url }}"></script>
+</body>
+</html>

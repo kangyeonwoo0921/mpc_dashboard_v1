@@ -1,23 +1,23 @@
-<aside class="live-panel context-panel" id="context-panel" data-connection="disconnected" data-collapsed="false" data-selection-level="greenhouse" aria-label="Selection context">
-  <div class="live-panel-collapsed-label" aria-hidden="true">CONTEXT</div>
+<aside class="live-panel context-panel" id="context-panel" data-connection="disconnected" data-collapsed="false" data-selection-level="greenhouse" aria-label="선택 정보">
+  <div class="live-panel-collapsed-label" aria-hidden="true">선택 정보</div>
   <header class="context-panel-header">
     <div class="panel-heading-content">
-      <nav class="context-breadcrumb" data-context-breadcrumb aria-label="Selection breadcrumb"><button type="button" disabled>Greenhouse</button></nav>
-      <div class="context-title-row"><h2 data-context-title>GREENHOUSE OVERVIEW</h2></div>
+      <nav class="context-breadcrumb" data-context-breadcrumb aria-label="선택 경로"><button type="button" disabled>온실</button></nav>
+      <div class="context-title-row"><h2 data-context-title>온실 전체</h2></div>
       <div class="context-status-row">
-        <span class="status-badge status-badge--source" data-live-field="source">LIVE — MOCK DATA</span>
-        <span class="status-badge live-connection" data-live-field="connection">DISCONNECTED</span>
+        <span class="status-badge status-badge--source" data-live-field="source">실시간 — 모의 데이터</span>
+        <span class="status-badge live-connection" data-live-field="connection">연결 끊김</span>
       </div>
     </div>
-    <button type="button" class="panel-collapse" id="live-panel-toggle" data-context-collapse aria-expanded="true" aria-label="Collapse Context Panel">›</button>
+    <button type="button" class="panel-collapse" id="live-panel-toggle" data-context-collapse aria-expanded="true" aria-label="패널 접기">›</button>
   </header>
-  <nav class="context-tabs" aria-label="Context data tabs">
-    <button type="button" data-context-tab="live" aria-selected="true">LIVE</button>
-    <button type="button" data-context-tab="history" aria-selected="false">HISTORY</button>
-    <button type="button" data-context-tab="details" aria-selected="false">DETAILS</button>
+  <nav class="context-tabs" aria-label="정보 탭">
+    <button type="button" data-context-tab="live" aria-selected="true">실시간</button>
+    <button type="button" data-context-tab="history" aria-selected="false">기록</button>
+    <button type="button" data-context-tab="details" aria-selected="false">상세</button>
   </nav>
   <div class="live-panel-body context-panel-body" data-context-content>
-    <p class="context-message">Waiting for data…</p>
+    <p class="context-message">데이터를 기다리는 중…</p>
   </div>
-  <footer class="live-panel-footer"><span>Updated <time data-live-field="lastUpdate">—</time></span><span>2 s polling</span></footer>
+  <footer class="live-panel-footer"><span>수신 <time data-live-field="lastUpdate">—</time></span><span>2초마다 갱신</span></footer>
 </aside>

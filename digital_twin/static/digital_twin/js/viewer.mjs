@@ -7,6 +7,7 @@ import { ContextPanelRuntime } from "./context-panel.mjs";
 import { InteractionRuntime } from "./interaction-runtime.mjs";
 import { mappedAssetContext } from "./live-config.mjs";
 import { LabelRuntime } from "./label-runtime.mjs";
+import { OpsPanel } from "./ops-panel.mjs";
 import { buildSceneRegistry } from "./scene-registry.mjs";
 import { SelectionRuntime } from "./selection-runtime.mjs";
 import { SOLAR_CONFIG, SOLAR_ENDPOINTS, SolarRuntime } from "./solar-runtime.mjs";
@@ -54,6 +55,11 @@ roofEdgeLight.position.set(8, 34, -42);
 scene.add(roofEdgeLight);
 
 const selectionRuntime = new SelectionRuntime();
+const opsPanel = new OpsPanel({
+  root: document.getElementById("ops-panel"),
+  statusRoot: document.getElementById("ops-status"),
+  onPreview: (request) => applyPreview(request),
+});
 let liveIntegration = null;
 let sceneRegistry = null;
 let cameraRuntime = null;
@@ -64,6 +70,7 @@ let contextPanel = null;
 let solarRuntime = null;
 let solarTimer = null;
 let solarDebounce = null;
+let solarPreview = null;   // { label, detail } while the 60-min preview drives the sun and light map
 const clock = new THREE.Clock();
 
 function siteDate() {
@@ -75,22 +82,45 @@ function renderSolarReadout(payload, error = null) {
   const node = shell.querySelector("[data-solar-readout]");
   if (!node) return;
   if (error) {
-    node.textContent = "Sun model unavailable";
+    node.textContent = "태양 모델을 불러오지 못했습니다";
     return;
   }
   const time = payload.timestamp.slice(11, 16);
   const sun = payload.sun.altitude_deg > 0
-    ? `Sun ${payload.sun.altitude_deg.toFixed(0)}° / ${payload.sun.azimuth_deg.toFixed(0)}°`
-    : "Sun below horizon";
-  const { status, sunlitFraction, mean, unit } = payload.summary;
-  const light = mean === null || mean === undefined ? `radiation: ${status}` : `${mean.toFixed(0)} ${unit}`;
-  const sunlit = sunlitFraction === null || sunlitFraction === undefined ? "" : ` · sunlit ${(sunlitFraction * 100).toFixed(0)}%`;
-  node.textContent = `${time} · ${sun}${sunlit} · ${light}`;
+    ? `태양 고도 ${payload.sun.altitude_deg.toFixed(0)}° · 방위 ${payload.sun.azimuth_deg.toFixed(0)}°`
+    : "해가 진 뒤";
+  const { sunlitFraction, mean, directMean, ghi } = payload.summary;
+  const parts = [solarPreview ? solarPreview.label : time, sun];
+  if (sunlitFraction !== null && sunlitFraction !== undefined && payload.sun.altitude_deg > 0) parts.push(`일조 ${(sunlitFraction * 100).toFixed(0)}%`);
+  if (mean !== null && mean !== undefined) parts.push(`작물면 평균 ${mean.toFixed(0)} ${payload.summary.unit}`);
+  else if (payload.grid.mode === "direct" && directMean !== null) parts.push(`직달광 평균 ${directMean.toFixed(0)} W/m² (추정·산란 제외)`);
+  else if (payload.sun.altitude_deg > 0 && (ghi === null || ghi === undefined)) parts.push("일사 입력 없음 → 일조 여부만 표시");
+  node.textContent = parts.join(" · ") + (solarPreview ? ` · ${solarPreview.detail}` : "");
 }
 
-function refreshSolar(time = null) {
+function refreshSolar(time = null, params = {}) {
   if (!solarRuntime) return;
-  solarRuntime.refresh(time).then(() => renderSolarReadout(solarRuntime.state)).catch((error) => renderSolarReadout(null, error));
+  solarRuntime.refresh(time, params).then(() => renderSolarReadout(solarRuntime.state)).catch((error) => renderSolarReadout(null, error));
+}
+
+function siteMinutes(iso) {
+  const [hh, mm] = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit", hour12: false })
+    .format(new Date(iso)).split(":").map(Number);
+  return hh * 60 + mm;
+}
+
+function applyPreview(request) {
+  if (!request) {
+    solarPreview = null;
+    setSolarLive(true);
+    return;
+  }
+  solarPreview = { label: request.label, detail: request.detail };
+  shell.querySelector("[data-solar-now]")?.setAttribute("aria-pressed", "false");
+  clearInterval(solarTimer);
+  const slider = shell.querySelector("[data-solar-time]");
+  if (slider) slider.value = String(Math.min(Math.max(siteMinutes(request.time), Number(slider.min)), Number(slider.max)));
+  refreshSolar(request.time, request.params);
 }
 
 // Optional deep link, e.g. ?time=09:30&lightmap=1&view=interior
@@ -117,6 +147,8 @@ function setSolarLive(live) {
   shell.querySelector("[data-solar-now]")?.setAttribute("aria-pressed", String(live));
   clearInterval(solarTimer);
   if (live) {
+    solarPreview = null;
+    opsPanel.markPreview(0);
     refreshSolar();
     solarTimer = setInterval(() => refreshSolar(), SOLAR_CONFIG.refreshMs);
   }
@@ -246,17 +278,8 @@ function renderMappingStatus(status) {
 
 function syncLiveChrome(state) {
   const status = state.connectionStatus();
-  const source = state.source?.startsWith("mock") ? "MOCK DATA" : state.source?.toUpperCase() ?? "LOCAL";
-  const updated = state.lastReceivedAt === null ? "—" : new Date(state.lastReceivedAt).toLocaleTimeString();
-  const sourceNode = shell.querySelector('[data-header-field="source"]');
-  const statusNode = shell.querySelector('[data-header-field="connection"]');
-  const updatedNode = shell.querySelector('[data-header-field="lastUpdate"]');
-  if (sourceNode) sourceNode.textContent = source;
-  if (statusNode) {
-    statusNode.textContent = status === "live" ? "CONNECTED" : status.toUpperCase();
-    statusNode.dataset.status = status;
-  }
-  if (updatedNode) updatedNode.textContent = updated;
+  const updated = state.lastReceivedAt === null ? "—" : new Date(state.lastReceivedAt).toLocaleTimeString("en-GB", { hour12: false });
+  opsPanel.setLive({ source: state.source, status, receivedAt: state.lastReceivedAt, ghi: state.environment?.solar_w_m2 ?? null });
   setDevField("source", state.source ?? "—");
   setDevField("connection", status.toUpperCase());
   setDevField("lastSuccess", updated);
@@ -287,7 +310,7 @@ function showError(error) {
   const detail = error instanceof Error ? error.message : String(error);
   message.hidden = false;
   message.dataset.kind = "error";
-  message.textContent = "Failed to load greenhouse model";
+  message.textContent = "온실 모델을 불러오지 못했습니다";
   setDevField("glbStatus", "Failed");
   setDevField("loadDetail", detail);
 }
@@ -344,11 +367,21 @@ function bindInterface() {
     const minutes = Number(event.target.value);
     const hh = String(Math.floor(minutes / 60)).padStart(2, "0");
     const mm = String(minutes % 60).padStart(2, "0");
+    solarPreview = null;
+    opsPanel.markPreview(-1);
     setSolarLive(false);
     clearTimeout(solarDebounce);
     solarDebounce = setTimeout(() => refreshSolar(`${siteDate()}T${hh}:${mm}`), 150);
   });
   shell.querySelector("[data-solar-now]")?.addEventListener("click", () => setSolarLive(true));
+  const opsRoot = document.getElementById("ops-panel");
+  opsRoot.querySelector("[data-ops-collapse]")?.addEventListener("click", (event) => {
+    const collapsed = opsRoot.dataset.collapsed !== "true";
+    opsRoot.dataset.collapsed = String(collapsed);
+    event.currentTarget.setAttribute("aria-expanded", String(!collapsed));
+    event.currentTarget.textContent = collapsed ? "+" : "−";
+    event.currentTarget.setAttribute("aria-label", collapsed ? "운영 요약 펼치기" : "운영 요약 접기");
+  });
   developerToggle.addEventListener("click", () => setDeveloperOpen(developerDrawer.getAttribute("aria-hidden") === "true"));
   document.getElementById("developer-close").addEventListener("click", () => setDeveloperOpen(false));
   document.getElementById("fullscreen-toggle").addEventListener("click", async () => {
@@ -363,6 +396,7 @@ function bindInterface() {
 
 resize();
 bindInterface();
+opsPanel.start();
 window.addEventListener("resize", resize);
 
 const loader = new GLTFLoader();
@@ -422,7 +456,7 @@ loader.load(
   (progress) => {
     if (progress.total > 0) {
       const percent = Math.round(progress.loaded / progress.total * 100);
-      message.textContent = `Loading greenhouse model… ${percent}%`;
+      message.textContent = `온실 모델을 불러오는 중… ${percent}%`;
       setDevField("loadDetail", `Loading greenhouse.glb… ${percent}%`);
     }
   },

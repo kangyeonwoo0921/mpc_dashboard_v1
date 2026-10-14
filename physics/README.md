@@ -70,7 +70,8 @@ Concurrent `statuses` are preserved; the primary `status` follows this order:
 
 Optional measurements are listed as missing without blocking solar preparation.
 No decomposition, zero fill, physical estimation, or percentage clamp occurs in
-this package. Existing LIVE adapter clamping remains unchanged upstream. Future
+this contract package. (The separate `radiation_v1` model separates GHI with Engerer2;
+see `physics/radiation_v1/decomposition.py`.) Existing LIVE adapter clamping remains unchanged upstream. Future
 consumers must gate physical claims on all quality conditions, not just `status`.
 
 ## Coordinates and north

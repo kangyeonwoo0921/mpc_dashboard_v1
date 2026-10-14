@@ -100,16 +100,16 @@ test("inspection text only reports available metadata and uncertainty", () => {
     userData: { asset_type: "sensor", sensor_type: "temperature_rh", verified_position: false, source_confidence: "placeholder" },
   };
   const details = formatInspectionData(object);
-  assert.equal(details.title, "T/RH Sensor");
-  assert.ok(details.rows.some((row) => row.label === "Position" && row.value === "unverified"));
-  assert.ok(details.rows.some((row) => row.label === "Source confidence" && row.value === "placeholder"));
-  assert.ok(formatTooltipText(object).includes("Position: unverified"));
+  assert.equal(details.title, "온습도 센서");
+  assert.ok(details.rows.some((row) => row.label === "위치" && row.value === "미확인"));
+  assert.ok(details.rows.some((row) => row.label === "출처 신뢰도" && row.value === "placeholder"));
+  assert.ok(formatTooltipText(object).includes("위치: 미확인"));
 });
 
 test("LIVE UI formatting covers null and connection badges", () => {
   assert.equal(formatValue(null, "°C", 1), "—");
   assert.equal(formatValue(28.45, "°C", 1), "28.4 °C");
-  assert.equal(statusBadge("live"), "CONNECTED");
-  assert.equal(statusBadge("stale"), "STALE");
-  assert.equal(statusBadge("disconnected"), "DISCONNECTED");
+  assert.equal(statusBadge("live"), "연결됨");
+  assert.equal(statusBadge("stale"), "지연");
+  assert.equal(statusBadge("disconnected"), "연결 끊김");
 });

@@ -79,8 +79,16 @@ python -m venv .venv
 
 ### 3.2 `GET /api/digital-twin/radiation/v1/` — 태양·일조·일사 (레이트레이싱)
 
-파라미터: `time`(선택, ISO, 예 `2026-10-09T12:30`). 없으면 현재 시각 + 실시간 값.
-`time`을 주면 형상(태양·그림자)만 계산하고 일사량은 `null`.
+파라미터 (모두 선택):
+- `time`: ISO 시각(예 `2026-10-09T12:30`). 없으면 현재 시각 + 실시간 값. `time`만 주면 형상(태양·그림자)만 계산하고 일사량은 `null`.
+- `ghi`: 외부 일사(W/m², 0–1500). 예측값으로 미리보기할 때 사용. `ghi_source`(예 `forecast`)는 `inputs.weather.source`에 그대로 표시.
+- `shade_screen_1`, `shade_screen_2`: 스크린 열림 %(0–100). 실시간 위치 대신 사용(추천 위치 미리보기).
+- 범위를 벗어나거나 숫자가 아니면 400.
+
+직달·산란 분리: 직달(DNI)·산란(DHI)이 측정되지 않으므로 GHI를 **Engerer2 모델로 분리한 추정값**을 쓴다
+(Yang 2022, RSER 159:112195, 식 6–7; `physics/radiation_v1/decomposition.py`). 결과는 `inputs.weather.decomposition`에
+`model`, `kd`, `kt`, `zenith_deg`, `status`(`ok` / `night` / `out_of_range:zenith_ge_85` / `missing_input`)와 함께 나온다.
+천정각 85° 이상(해가 매우 낮음)에서는 분리하지 않는다.
 
 | 필드 | 의미 |
 |---|---|
@@ -88,17 +96,21 @@ python -m venv .venv
 | `solar.direction_threejs` | 태양 방향 단위벡터(Three.js 좌표) |
 | `solar.path_threejs` | 그날 태양 궤적(20분 간격, 지평선 위) |
 | `inputs.weather`, `inputs.actuators` | 계산에 쓴 입력 |
-| `radiation.status` | `ok` / `decomposition_required` / `missing_input` (아래) |
-| `radiation.statuses` | 모든 상태 플래그(예 `parameter_missing:cover.diffuse_transmittance`) |
+| `radiation.status` | 가장 중요한 상태 하나 (아래) |
+| `radiation.statuses` | 모든 상태 플래그(예 `parameter_missing:cover.diffuse_transmittance`, `unresolved_path:unknown_optics_or_vent_state`) |
 | `radiation.sunlit_fraction` | 작물면 칸 중 직달광이 닿는 비율(0–1) |
-| `radiation.mean_W_m2` 등 | 작물면 일사 통계. 현재는 `null`(분해 모델 미정) |
+| `radiation.direct_resolved_mean_W_m2` | 계산된 칸의 직달광 평균(추정) |
+| `radiation.direct_resolved_fraction` | 직달광이 계산된 칸의 면적 비율(측창 커튼·방풍벽을 지나는 칸은 광학값이 없어 제외) |
+| `radiation.mean_W_m2` 등 | 작물면 전체(직달+산란) 통계. 산란 투과율이 없어 현재 `null` |
 | `radiation.grid` | 작물면 격자(아래) |
 | `provenance` | 입력값 출처·검증 여부 |
 
 `radiation.status`:
-- `ok`: 직달·산란 일사가 있어 W/m² 계산 가능
-- `decomposition_required`: 전천일사만 있음 → **현재 상태**. W/m²는 `null`, `sunlit`만 유효
-- `missing_input`: 일사 입력 없음(`time` 지정 시)
+- `ok`: 직달·산란 모두 계산됨
+- `missing_input`: 일사 입력 없음(`time`만 지정, 또는 현장 일사 없음)
+- `decomposition_out_of_range:zenith_ge_85`: 해가 너무 낮아 분리하지 않음
+- `parameter_missing:...`: 광학값 없음 → **현재 상태** (`cover.diffuse_transmittance`). `direct_W_m2`는 유효, `diffuse_W_m2`·`total_W_m2`는 `null`
+- `unresolved_path:...`: 일부 칸이 광학값 없는 면(측창 커튼, 방풍벽)을 지나 직달광도 `null`
 
 격자(`radiation.grid`):
 - `rows × cols` 칸, `cell_size_m` 간격, 높이 `height_m`(작물면, 잠정 3.0 m)
@@ -185,6 +197,33 @@ mpc_lab 실시간 실행기가 5분마다 만드는 외부 일사 예측. 값은
 | `horizons[].ghi_clear_w_m2` | 같은 시각 맑은 날 일사(참고선) |
 
 `status`가 `ok`가 아니면 `horizons`는 `null`이다(오래된 예측을 현재 값처럼 보여주지 않음).
+`recent_observations`: 최근 60분 5분 평균 실측 일사 `[{time, ghi_w_m2, status}]` (그래프용, 정상 관측이 아니면 `null`).
+
+### 3.6 `GET /api/recommendation/screens/` — 스크린 제어 추천
+
+일사 예측 + 실시간 값 + 일출·일몰로 계산한 **추천**(장치 제어 안 함). 규칙: `markdown/screen_recommendation.md`.
+
+| 필드 | 의미 |
+|---|---|
+| `status` | `ok` / `degraded` (`status_reasons`: `live_disconnected`, `forecast_*`) |
+| `screens.shade_screen` / `screens.diffuse_screen` | 차광커튼2 / 차광커튼1. `current_open_percent`, `recommended_open_percent` (열림 %), `action` (`hold`/`deploy`/`retract`/`unavailable`), `action_label`, `state`, `reasons` (한국어 문장), `plan_open_percent` (13개) |
+| `plan_times` | 계획 시각 13개 (지금 포함, 5분 간격) |
+| `settings` | 적용된 운영 모드·생육 단계·기준값, `growth_guide`, `days_after_transplant` |
+| `inputs` | 실시간 출처·연결, 외기 온도, 현재 일사, 측정 평균, 예측 상태, 일출·일몰, 안전 상태 |
+| `advisories` | 화면에 표시할 안내 문장 (센서 기준, 습도 센서 점검 등) |
+| `forecast` | 그래프용 `horizons`, `recent_observations` |
+| `crop_light` | 작물면 직달광 추정: `status` (`ok`/`unavailable`), `reason`, `current_direct_mean_W_m2` (현재 스크린 위치), `recommended_direct_mean_W_m2` (추천 위치일 때), `resolved_fraction`, `sunlit_fraction`, `dni_W_m2`, `dhi_W_m2`, `separation_model`, `statuses`. 산란광 미포함 |
+
+`state`: `SAFETY_OVERRIDE`, `NIGHT_INSULATION`, `NIGHT_OPEN`, `DAY_SHADE_ASSIST`, `DAY_VENTILATION`, `DAY_LIGHT_PRESERVATION`, `DAY_HOLD`, `DAY`, `NO_DATA`.
+
+### 3.7 `GET|POST /api/recommendation/settings/`, `POST /api/recommendation/settings/reset/` — 추천 설정
+
+- `GET`: `values`, `defaults`, `fields` (각 항목의 `label`, `group`, `kind` `number|choice|date`, `default`, `min`, `max`, `step`, `unit`, `choices`, `help`, `source`, `provisional`), `groups`, `updated_at`, `updated_by`, `history` (최근 20건).
+- `POST` JSON `{"values": {키: 값}, "changed_by": "이름", "note": "메모"}` → 성공 시 `GET`과 같은 응답. 검증 실패 시 400 `{"errors": {키: 메시지}}`, 아무것도 저장 안 함.
+- `reset`: `{"keys": [...]}` (생략 시 전체) → 기본값 복원, 기록 남김.
+- 설정은 서버에 저장되어 모든 사용자에게 같다. **인증 없음(로컬 전제)**.
+- 참고 화면: `/recommendation/`.
+
 
 ## 4. 3D 모델 (GLB)
 
@@ -211,7 +250,8 @@ mpc_lab 실시간 실행기가 5분마다 만드는 외부 일사 예측. 값은
 | 실시간 데이터 | mock. 현장 Growlink 연결 예정 |
 | MPC 추천 | mock. 형식만 확정 |
 | 일사 예측 | 현장 데이터가 들어오기 시작하면 제공. 그 전에는 `unavailable` |
-| 작물면 일사 W/m² | 직달·산란 분해 모델 미정 → `null` |
+| 작물면 일사 W/m² | 직달광만 추정(Engerer2 분리 + 레이트레이싱). 산란광은 피복·스크린 산란 투과율이 없어 `null` |
+| 측창 커튼·방풍벽 광학값 | 없음 → 그 면을 지나는 칸은 직달광도 `null` (10월 정오 약 6%, 겨울 저녁 최대 약 60%) |
 | 스크린·피복 광학값 | 현장 제보 기반 잠정값 |
 | 천창 % ↔ 각도 | 선형 가정, 최대각(기둥 기준 110°) 잠정 |
 | 천창 좌/우 기준, 센서 위치, 작물면 높이 | 잠정 |

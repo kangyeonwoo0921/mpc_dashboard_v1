@@ -94,6 +94,8 @@ mpc_dashboard_v1/
 | `/api/digital-twin/solar/` | 초기 레퍼런스 모델 | 비교용. 새 화면은 radiation/v1 사용 |
 | `/api/mpc/recommendation/` | MPC 추천값·예측 궤적 | **mock** (`is_mock: true`). `?scenario=ok\|degraded\|unavailable` |
 | `/api/forecast/ghi/` | 5–60분 일사 예측 | 현장 데이터 연결 후 제공, 그 전에는 `status: unavailable` |
+| `/api/recommendation/screens/` | 스크린 제어 추천 (차광커튼1·2) | 동작. 예측이 없으면 `degraded` |
+| `/api/recommendation/settings/` | 추천 설정 조회·변경 (GET/POST) | 동작. 참고 화면 `/recommendation/` |
 
 필드별 의미와 예시 응답은 [frontend_api_contract.md](frontend_api_contract.md) 3절.
 

@@ -189,3 +189,17 @@ def normalize_growlink_live(
         "exhaust_fan_on": _boolean(onoff.get("배기팬")),
     }
     return dto
+
+
+_STATUS_KEYS = {"rain": "감우", "strong_wind": "강풍"}
+
+
+def normalize_growlink_status(raw: Any) -> dict[str, bool | None]:
+    """Rain / strong-wind flags from the dashboard ``status`` block ("ON"/"OFF"); None when absent."""
+
+    status = _mapping(_mapping(raw).get("status"))
+    out: dict[str, bool | None] = {}
+    for key, raw_key in _STATUS_KEYS.items():
+        value = status.get(raw_key)
+        out[key] = {"ON": True, "OFF": False}.get(str(value).strip().upper()) if value is not None else None
+    return out
