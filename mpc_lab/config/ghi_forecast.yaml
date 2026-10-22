@@ -191,6 +191,19 @@ operation:
     source_id: "a new model whose validation kc forecasts leave this range is not activated (observed kc max 1.59 at >= 20 deg)"
     status: provisional
     verified: false
+  rain_override:
+    value: persistence
+    source_type: project_decision
+    source_id: "user decision 2026-10-20: while the field rain sensor (감우) is ON every horizon uses smart persistence (kc at the issue bin x clear-sky GHI at the target). Live record 10-16..10-20, 38 issues under rain: RMSE persistence 46 / 44 / 52 vs used forecast 78 / 116 / 191 W/m2 at 15 / 30 / 60 min (mean-reverting model and CC over-forecast in rain). null disables"
+    status: provisional
+    verified: false
+  rain_hold_min:
+    value: 60
+    units: min
+    source_type: project_decision
+    source_id: "user decision 2026-10-20: rain counts as ongoing if the rain sensor was ON at any minute in the last 60 min (the sensor flickers ON/OFF every 1-8 min in drizzle, e.g. 10 changes 13:22-13:58 on 10-20). The live runner samples the sensor every minute"
+    status: provisional
+    verified: false
   sanity_max_validation_rmse_ratio:
     value: 1.5
     source_type: project_decision

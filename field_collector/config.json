@@ -5,5 +5,6 @@
   "timeout_s": 10,
   "retry_wait_s": 300,
   "min_free_disk_gb": 5,
-  "output_dir": "C:\\GreenhouseCollector\\data"
+  "output_dir": "C:\\GreenhouseCollector\\data",
+  "sync_dir": ""
 }

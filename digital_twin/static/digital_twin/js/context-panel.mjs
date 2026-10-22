@@ -23,7 +23,7 @@ function connectionLabel(state, now = Date.now()) {
 
 function spanActuatorRows(spanAssets, state) {
   return [["roof_vent", "천창"], ["shade_screen", "차광 스크린"],
-    ["diffuse_screen", "산광 스크린"], ["side_curtain", "측창 커튼"]].map(([type, label]) => {
+    ["diffuse_screen", "산광 스크린"], ["side_curtain", "측창"]].map(([type, label]) => {
     const entry = spanAssets.find((asset) => asset.type === type);
     const context = mappedAssetContext(entry, state);
     return { label, value: percent(context.openingPercent),
@@ -49,6 +49,70 @@ function assetDetails(entry) {
   return fields.filter(([, value]) => value !== null && value !== undefined && value !== "").map(([label, value]) => ({ label, value: String(value) }));
 }
 
+const RH_SENSOR_STUCK = 99;   // indoor RH at or above this is the known stuck sensor (99.9 %), not a reading
+
+function num(value, digits = 0) {
+  return typeof value === "number" && Number.isFinite(value) ? value.toFixed(digits) : null;
+}
+
+function joinParts(parts, unit) {
+  const shown = parts.filter(([, v]) => v !== null);
+  return shown.length ? `${shown.map(([k, v]) => (k ? `${k} ${v}` : v)).join(" · ")}${unit}` : "—";
+}
+
+/** Greenhouse-level live sections: indoor, outdoor, actuators, field status. Faulty or unknown values are
+ *  shown as a state or left out instead of as a misleading number. */
+export function greenhouseSections(liveState) {
+  const env = liveState?.environment ?? {};
+  const act = liveState?.actuators ?? {};
+  const st = liveState?.status ?? {};
+  const indoor = [];
+  const t = num(env.indoor_temperature_c, 1);
+  const setpoint = num(env.setpoint_temperature_c, 1);
+  indoor.push({ label: "온도", value: t === null ? "—" : `${t} °C`, note: setpoint === null ? null : `설정 ${setpoint} °C` });
+  const rh = env.indoor_rh_pct;
+  if (typeof rh === "number" && rh >= RH_SENSOR_STUCK) {
+    indoor.push({ label: "습도", value: "센서 점검 필요", note: `${num(rh, 1)} % 고정` });
+  } else if (typeof rh === "number") {
+    const extra = [num(env.dew_point_c, 1) && `이슬점 ${num(env.dew_point_c, 1)} °C`, num(env.vpd_kpa, 2) && `VPD ${num(env.vpd_kpa, 2)} kPa`].filter(Boolean);
+    indoor.push({ label: "습도", value: `${num(rh, 1)} %`, note: extra.join(" · ") || null });
+  }
+  if (typeof env.co2_ppm === "number" && env.co2_ppm > 0) indoor.push({ label: "CO₂", value: `${num(env.co2_ppm)} ppm` });
+
+  const outdoor = [];
+  const tout = num(env.outdoor_temperature_c, 1);
+  if (tout !== null) outdoor.push({ label: "기온", value: `${tout} °C` });
+  const wind = num(env.wind_speed_m_s, 1);
+  if (wind !== null) outdoor.push({ label: "바람", value: `${wind} m/s`, note: env.wind_direction_text || null });
+  if (st.rain !== null && st.rain !== undefined) outdoor.push({ label: "비", value: st.rain ? "비 옴" : "없음" });
+  if (st.strong_wind) outdoor.push({ label: "강풍", value: "강풍 감지" });
+
+  const pct = (key) => num(act[key]);
+  const devices = [
+    { label: "천창", value: joinParts([["좌", pct("roof_vent_left_pct")], ["우", pct("roof_vent_right_pct")]], " %") },
+    { label: "측창", value: joinParts([["전", pct("side_vent_front_pct")], ["후", pct("side_vent_rear_pct")], ["좌", pct("side_vent_left_pct")], ["우", pct("side_vent_right_pct")]], " %") },
+    { label: "수직커튼", value: joinParts([["전", pct("vertical_curtain_front_pct")], ["후", pct("vertical_curtain_rear_pct")], ["좌", pct("vertical_curtain_left_pct")], ["우", pct("vertical_curtain_right_pct")]], " %") },
+    { label: "차광 · 산광", value: joinParts([["", pct("shade_screen_2_pct")], ["", pct("shade_screen_1_pct")]], " %") },
+  ];
+  for (const [key, label] of [["boiler_on", "보일러"], ["circulation_fan_on", "순환팬"], ["exhaust_fan_on", "배기팬"]]) {
+    if (typeof act[key] === "boolean") devices.push({ label, value: act[key] ? "켜짐" : "꺼짐" });
+  }
+
+  const field = [];
+  if (st.operation_mode) field.push({ label: "운전 모드", value: st.operation_mode });
+  if (st.alarm !== null && st.alarm !== undefined) {
+    const count = typeof st.alarm_count === "number" && st.alarm_count > 0 ? ` (${st.alarm_count}건)` : "";
+    field.push({ label: "경보", value: st.alarm ? `경보 발생${count}` : st.caution ? "주의" : "없음" });
+  }
+
+  return [
+    { title: "실내", rows: indoor },
+    outdoor.length ? { title: "외부", rows: outdoor } : null,
+    { title: "장치 (%)", rows: devices },
+    field.length ? { title: "운전 상태", rows: field } : null,
+  ].filter(Boolean);
+}
+
 export function buildContextModel({ selection, liveState, assetEntry = null, assetContext = {}, spanAssets = [], now = Date.now() }) {
   const connection = connectionLabel(liveState, now);
   const connectionStatus = typeof liveState?.connectionStatus === "function" ? liveState.connectionStatus(now) : "disconnected";
@@ -58,19 +122,7 @@ export function buildContextModel({ selection, liveState, assetEntry = null, ass
     return {
       title: "온실 전체",
       breadcrumb: [{ level: "greenhouse", label: "온실" }],
-      sections: [
-        { title: "환경", rows: [
-          { label: "실내 온도", value: formatValue(liveState?.environment?.indoor_temperature_c, "°C", 1) },
-          { label: "실내 습도", value: formatValue(liveState?.environment?.indoor_rh_pct, "%", 1) },
-          { label: "외부 일사 (센서)", value: formatValue(liveState?.environment?.solar_w_m2, "W/m²", 0) },
-        ] },
-        { title: "시스템", rows: [
-          { label: "연결 상태", value: connection },
-          { label: "데이터 출처", value: source },
-          { label: "마지막 수신", value: updated },
-          { label: "알림", value: "미설정" },
-        ] },
-      ],
+      sections: greenhouseSections(liveState),
       details: [],
       detailsMessage: "동이나 장치를 선택하면 상세 정보가 보입니다.",
       source,
@@ -116,8 +168,6 @@ export function buildContextModel({ selection, liveState, assetEntry = null, ass
   if (owner?.userData?.control_variable) liveRows.push({ label: "제어 변수", value: owner.userData.control_variable });
   if (selection.spanId) liveRows.push({ label: "동", value: selection.spanId });
   if (assetContext.channel) liveRows.push({ label: "연결 채널", value: assetContext.channel });
-  if (assetContext.channel) liveRows.push({ label: "출처", value: source });
-  if (assetContext.channel) liveRows.push({ label: "마지막 수신", value: updated });
   if (assetContext.mappingStatus) liveRows.push({ label: "연결 상태", value: assetContext.mappingStatus });
   if (!assetContext.channel && owner?.userData?.control_variable) {
     liveRows.push({ label: "실시간 연결", value: "미설정" });

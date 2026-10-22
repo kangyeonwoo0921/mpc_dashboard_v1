@@ -3,10 +3,10 @@ export const CAMERA_TRANSITION_MS = 600;
 export const SPAN_IDS = Object.freeze(["S01", "S02", "S03", "S04"]);
 
 export const SCENE_COLORS = Object.freeze({
-  background: 0x18232b,
-  fog: 0x18232b,
-  hover: 0x5fbca9,
-  selected: 0x79c9b5,
+  background: 0x16304f,
+  fog: 0x16304f,
+  hover: 0x6aa8de,
+  selected: 0x8bbbe8,
 });
 
 export const CAMERA_PRESETS = Object.freeze({
@@ -14,7 +14,7 @@ export const CAMERA_PRESETS = Object.freeze({
     label: "전체",
     mode: "fit",
     focus: "model",
-    direction: Object.freeze([1, 0.62, 0.92]),
+    direction: Object.freeze([-0.8, 0.5, 0.8]),
     visibility: "exterior",
     margin: CAMERA_FIT_MARGIN,
   }),
@@ -113,6 +113,7 @@ export const INTERACTABLE_ASSET_TYPES = Object.freeze(new Set([
   "shade_screen",
   "diffuse_screen",
   "side_curtain",
+  "vertical_curtain",
   "sensor",
   "sensor_anchor",
   "crop_bed",
@@ -148,7 +149,8 @@ export const ASSET_LABELS = Object.freeze({
   roof_vent: "천창",
   shade_screen: "차광 스크린",
   diffuse_screen: "산광 스크린",
-  side_curtain: "측창 커튼",
+  side_curtain: "측창",
+  vertical_curtain: "수직커튼",
   sensor: "센서",
   sensor_anchor: "센서 거치대",
   crop_bed: "재배 구역",

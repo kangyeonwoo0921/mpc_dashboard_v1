@@ -80,7 +80,8 @@ function groupFlags(object) {
     if (name === "GH_VENTS" || name === "GH_SCREENS") flags.add("controls");
     current = current.parent;
   }
-  if (object.userData?.asset_type === "side_curtain" || nearestAssetOwner(object)?.userData?.asset_type === "side_curtain") {
+  const ownerType = nearestAssetOwner(object)?.userData?.asset_type;
+  if (["side_curtain", "vertical_curtain"].includes(object.userData?.asset_type) || ["side_curtain", "vertical_curtain"].includes(ownerType)) {
     flags.add("controls");
   }
   return flags;

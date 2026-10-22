@@ -87,6 +87,9 @@ def _find_numbered(items: Any, key: str, expected: int) -> dict[str, Any] | None
     )
 
 
+STATUS_FIELDS = ("operation_mode", "rain", "strong_wind", "alarm", "caution", "alarm_count")
+
+
 def _empty_dto(timestamp: str, source: str) -> dict[str, Any]:
     return {
         "timestamp": timestamp,
@@ -94,6 +97,31 @@ def _empty_dto(timestamp: str, source: str) -> dict[str, Any]:
         "connected": False,
         "environment": {key: None for key in ENVIRONMENT_FIELDS},
         "actuators": {key: None for key in ACTUATOR_FIELDS},
+        "status": {key: None for key in STATUS_FIELDS},
+    }
+
+
+def _on_off(value: Any) -> bool | None:
+    return {"ON": True, "OFF": False}.get(str(value).strip().upper()) if value is not None else None
+
+
+def _count(value: Any) -> int | None:
+    """'0개' / 3 / '3' -> int; anything else -> None."""
+    text = str(value).strip().rstrip("개").strip() if value is not None else ""
+    return int(text) if text.isdigit() else None
+
+
+def normalize_status_block(raw: Any) -> dict[str, Any]:
+    """Farm-level status block (운전모드, 감우, 강풍, 전체경보, 전체주의, 알람 발생횟수); None when absent."""
+    status = _mapping(_mapping(raw).get("status"))
+    mode = status.get("운전모드")
+    return {
+        "operation_mode": mode.strip() if isinstance(mode, str) and mode.strip() else None,
+        "rain": _on_off(status.get("감우")),
+        "strong_wind": _on_off(status.get("강풍")),
+        "alarm": _on_off(status.get("전체경보")),
+        "caution": _on_off(status.get("전체주의")),
+        "alarm_count": _count(status.get("알람 발생횟수")),
     }
 
 
@@ -146,6 +174,7 @@ def normalize_growlink_live(
         timestamp_text = datetime.now().astimezone().isoformat()
 
     dto = _empty_dto(timestamp_text, source)
+    dto["status"] = normalize_status_block(raw)
     farm = _mapping(_mapping(raw).get("farm"))
     zone = _find_numbered(farm.get("zones"), "zone", 1)
     house = _find_numbered(_mapping(zone).get("houses"), "house", 1)

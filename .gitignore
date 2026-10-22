@@ -8,3 +8,8 @@ tmp/
 *.blend1
 *.blend2
 runtime/
+# field collector login (field PC only, never committed)
+field_collector/credentials.json
+# frontend delivery and pre-merge backup (local copies, not tracked)
+digital_twin_v1/
+digital_twin_backup_*/

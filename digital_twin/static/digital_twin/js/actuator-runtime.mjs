@@ -1,4 +1,5 @@
 import { LIVE_CONFIG, OBJECT_MAP } from "./live-config.mjs";
+import { applyWallCurtainOpening } from "./wall-curtains.mjs";
 
 const DEG_TO_RAD = Math.PI / 180;
 
@@ -160,6 +161,8 @@ export class ActuatorRuntime {
     }
     if (mapping.kind === "screen") {
       object.scale[base.scaleAxis] = Math.max(0.000001, (1 - percent / 100) * base.fullScale);
+    } else if (mapping.kind === "wallCurtain") {
+      applyWallCurtainOpening(object, percent);
     }
   }
 }

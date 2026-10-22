@@ -42,6 +42,88 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
 
+class LoginHandler(BaseHTTPRequestHandler):
+    """Dashboard that redirects /api/live to /login until the form login sets a session cookie."""
+    requests = []
+
+    def do_GET(self):
+        cookie = self.headers.get("Cookie") or ""
+        LoginHandler.requests.append(("GET", self.path.split("?")[0], cookie))
+        if self.path.startswith("/api/live") and "session=ok" in cookie:
+            body, kind = json.dumps(SAMPLE, ensure_ascii=False).encode("utf-8"), "application/json"
+        elif self.path.startswith("/api/live"):
+            self.send_response(302)
+            self.send_header("Location", "/login?next=/api/live")
+            self.end_headers()
+            return
+        else:
+            body, kind = "<!doctype html><form method=post></form>".encode("utf-8"), "text/html; charset=utf-8"
+        self.send_response(200)
+        self.send_header("Content-Type", kind)
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def do_POST(self):
+        form = self.rfile.read(int(self.headers.get("Content-Length", 0))).decode("utf-8")
+        LoginHandler.requests.append(("POST", self.path, form))
+        self.send_response(302)
+        if form == "username=reader&password=right":
+            self.send_header("Set-Cookie", "session=ok; Path=/")
+        self.send_header("Location", "/")
+        self.end_headers()
+
+    def log_message(self, *args):
+        pass
+
+
+class LoginTests(unittest.TestCase):
+    def setUp(self):
+        self.server = HTTPServer(("127.0.0.1", 0), LoginHandler)
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+        self.url = f"http://127.0.0.1:{self.server.server_port}/api/live"
+        LoginHandler.requests.clear()
+
+    def tearDown(self):
+        self.server.shutdown()
+
+    def test_no_credentials_never_logs_in(self):
+        with self.assertRaises(collector.LoginRequired):
+            collector.fetch(self.url, 5)
+        self.assertEqual([(r[0], r[1]) for r in LoginHandler.requests], [("GET", "/api/live")])
+
+    def test_logs_in_once_and_keeps_the_session_in_memory(self):
+        session = collector.Session(self.url, {"username": "reader", "password": "right"})
+        self.assertEqual(collector.fetch(self.url, 5, session)["farm"]["outside"]["일사량"], 173.0)
+        collector.fetch(self.url, 5, session)
+        posts = [r for r in LoginHandler.requests if r[0] == "POST"]
+        self.assertEqual(posts, [("POST", "/login", "username=reader&password=right")])
+        # only the data URL and one login: the login page and the page after login are never loaded
+        self.assertEqual({(r[0], r[1]) for r in LoginHandler.requests}, {("GET", "/api/live"), ("POST", "/login")})
+
+    def test_wrong_password_fails_and_does_not_retry_immediately(self):
+        session = collector.Session(self.url, {"username": "reader", "password": "wrong"}, min_login_interval_s=300)
+        with self.assertRaises(collector.LoginFailed):
+            collector.fetch(self.url, 5, session)
+        with self.assertRaises(collector.LoginFailed):
+            collector.fetch(self.url, 5, session)
+        self.assertEqual(len([r for r in LoginHandler.requests if r[0] == "POST"]), 1)
+
+    def test_credentials_file_is_optional_and_password_is_not_logged(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config_path = Path(tmp) / "config.json"
+            config_path.write_text(json.dumps({"url": self.url, "output_dir": tmp}), encoding="utf-8")
+            self.assertIsNone(collector.load_config(config_path)["credentials"])
+            (Path(tmp) / "credentials.json").write_text(json.dumps({"username": "reader", "password": "right"}),
+                                                        encoding="utf-8")
+            config = collector.load_config(config_path)
+            self.assertEqual(config["credentials"]["username"], "reader")
+            self.assertEqual(collector.step(config, {}), 0)
+            collector.log(tmp, "probe")
+            self.assertNotIn("right", (Path(tmp) / "collector.log").read_text(encoding="utf-8"))
+            self.assertTrue((Path(tmp) / "latest.json").exists())
+
+
 class CollectorTests(unittest.TestCase):
     def test_fetch_is_a_plain_get_without_cookies(self):
         server = HTTPServer(("127.0.0.1", 0), Handler)
@@ -172,3 +254,67 @@ class FieldSourceTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SyncTests(unittest.TestCase):
+    """Local-first writing: a broken sync folder (e.g. Google Drive) never stops collection."""
+
+    def config(self, local, remote):
+        return {"url": "http://127.0.0.1:1/api/live", "timeout_s": 1, "retry_wait_s": 300, "interval_s": 60,
+                "min_free_disk_gb": 0, "output_dir": local, "sync_dir": remote}
+
+    def test_changed_files_are_copied_once(self):
+        with tempfile.TemporaryDirectory() as local, tempfile.TemporaryDirectory() as remote:
+            when = datetime(2026, 10, 15, 9, 0, 5, tzinfo=collector.KST)
+            collector.write_outputs(local, SAMPLE, when)
+            synced, t0 = {}, when.timestamp()
+            self.assertEqual(collector.sync_outputs(local, remote, synced, now=t0), 3)          # latest, outside, raw
+            self.assertEqual(collector.sync_outputs(local, remote, synced, now=t0 + 60), 0)     # nothing changed
+            collector.write_outputs(local, SAMPLE, when.replace(minute=1))
+            self.assertEqual(collector.sync_outputs(local, remote, synced, now=t0 + 60), 2)     # raw waits (hourly)
+            self.assertEqual(collector.sync_outputs(local, remote, synced, now=t0 + 3601), 1)   # raw after an hour
+            rows = (Path(remote) / "outside" / "outside_2026-10-15.csv").read_text(encoding="utf-8-sig").splitlines()
+            self.assertEqual(len(rows), 3)
+            self.assertFalse(list(Path(remote).rglob("*.part")))
+
+    def test_broken_sync_folder_does_not_stop_collection(self):
+        with tempfile.TemporaryDirectory() as local, tempfile.TemporaryDirectory() as tmp:
+            blocked = Path(tmp) / "not_a_folder"
+            blocked.write_text("x", encoding="utf-8")                                 # a file: copies into it fail
+            config = self.config(local, str(blocked / "drive"))
+            with patch.object(collector, "fetch", return_value=SAMPLE):
+                self.assertEqual(collector.step(config, {}), 0)                       # collection unaffected
+            with self.assertRaises(OSError):
+                collector.sync_outputs(local, config["sync_dir"], {})
+            self.assertTrue((Path(local) / "latest.json").exists())
+
+    def test_restart_keeps_rows_already_in_the_sync_folder(self):
+        with tempfile.TemporaryDirectory() as local, tempfile.TemporaryDirectory() as remote:
+            earlier = datetime(2026, 10, 15, 4, 19, 4, tzinfo=collector.KST)
+            collector.write_outputs(remote, SAMPLE, earlier)                          # synced before the restart
+            self.assertEqual(collector.seed_from_sync(local, remote, "2026-10-15"),
+                             ["outside/outside_2026-10-15.csv", "raw/live_2026-10-15.jsonl"])
+            collector.write_outputs(local, SAMPLE, earlier.replace(hour=18, minute=30))
+            collector.sync_outputs(local, remote, {})
+            rows = (Path(remote) / "outside" / "outside_2026-10-15.csv").read_text(encoding="utf-8-sig").splitlines()
+            self.assertEqual([r[:16] for r in rows[1:]], ["2026-10-15 04:19", "2026-10-15 18:30"])
+
+    def test_logging_never_raises(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            blocked = Path(tmp) / "file"
+            blocked.write_text("x", encoding="utf-8")
+            collector.log(blocked / "sub", "cannot be written")                       # no exception
+
+    def test_disk_check_failure_backs_off_instead_of_crashing(self):
+        with tempfile.TemporaryDirectory() as local:
+            with patch.object(collector, "disk_ok", side_effect=OSError("drive gone")):
+                self.assertEqual(collector.step(self.config(local, None), {}), 300)
+
+    def test_config_and_credentials_written_by_powershell_with_bom(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "config.json"
+            body = {"url": "http://127.0.0.1:8000/api/live", "output_dir": tmp, "sync_dir": "G:/drive"}
+            path.write_bytes(b"\xef\xbb\xbf" + json.dumps(body).encode("utf-8"))
+            (Path(tmp) / "credentials.json").write_bytes(b"\xef\xbb\xbf" + b'{"username": "u", "password": "p"}')
+            config = collector.load_config(path)
+            self.assertEqual((config["sync_dir"], config["credentials"]["username"]), ("G:/drive", "u"))

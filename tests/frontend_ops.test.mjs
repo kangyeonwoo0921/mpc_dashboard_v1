@@ -3,7 +3,9 @@ import test from "node:test";
 
 import { buildOpsStatus } from "../digital_twin/static/digital_twin/js/ops-status.mjs";
 import { previewRequest } from "../digital_twin/static/digital_twin/js/ops-panel.mjs";
-import { cropLightText, nextChange, nextChangeText } from "../digital_twin/static/digital_twin/js/rec-common.mjs";
+import {
+  cropLightText, forecastTableRows, ghiChartPoints, ghiPointLines, nextChange, nextChangeText,
+} from "../digital_twin/static/digital_twin/js/rec-common.mjs";
 import { normalizeSolarPayload } from "../digital_twin/static/digital_twin/js/solar-runtime.mjs";
 
 const times = Array.from({ length: 13 }, (_, k) => `2026-10-12T12:${String(k * 5).padStart(2, "0")}:00+09:00`);
@@ -25,7 +27,6 @@ test("status bar: one overall verdict from live, forecast and recommendation", (
   const ok = buildOpsStatus({ live, recommendation: recommendation() });
   assert.equal(ok.overall.level, "ok");
   assert.equal(ok.items.find((i) => i.key === "live").value, "현장 수집");
-  assert.equal(ok.mode, "추천만 · 장치 제어 안 함");
 
   const mock = buildOpsStatus({ live: { ...live, source: "mock_dynamic" }, recommendation: recommendation() });
   assert.deepEqual([mock.overall.level, mock.overall.text], ["warn", "모의 데이터"]);
@@ -38,6 +39,9 @@ test("status bar: one overall verdict from live, forecast and recommendation", (
     statusReasons: ["forecast_unavailable"] }) });
   assert.equal(stale.overall.level, "warn");
   assert.equal(stale.items.find((i) => i.key === "forecast").value, "현장 데이터 끊김");
+
+  const alarm = buildOpsStatus({ live: { ...live, alarm: true }, recommendation: recommendation() });
+  assert.deepEqual([alarm.overall.level, alarm.items.find((i) => i.key === "alarm")?.value], ["bad", "경보 발생"]);
 
   const down = buildOpsStatus({ live: { status: "disconnected" }, recommendationError: true });
   assert.deepEqual([down.overall.level, down.items[0].value], ["bad", "연결 끊김"]);
@@ -79,4 +83,48 @@ test("v1 payload: estimated direct-beam map when diffuse optics are unknown", ()
   assert.equal(normalized.summary.directMean, 380);
   payload.solar.altitude_deg = -5;
   assert.equal(normalizeSolarPayload(payload).grid.mode, "sunlit");
+});
+
+test("GHI chart points and the tooltip text for a selected point", () => {
+  const payload = {
+    settings: { shade_threshold_w_m2: 700 },
+    plan_times: times,
+    screens: { shade_screen: { plan_open_percent: [100, 100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] } },
+    forecast: {
+      recent_observations: [{ time: "2026-10-12T11:55:00+09:00", ghi_w_m2: 640, status: "observed" },
+        { time: "2026-10-12T11:50:00+09:00", ghi_w_m2: null, status: "missing" }],
+      horizons: [
+        { horizon_min: 5, target_time: "2026-10-12T12:05:00+09:00", ghi_w_m2: 690.4, ghi_clear_w_m2: 760, method: "xgb_expanding" },
+        { horizon_min: 10, target_time: "2026-10-12T12:10:00.000+09:00", ghi_w_m2: 712, ghi_clear_w_m2: 761, method: "xgb_expanding" },
+        { horizon_min: 15, target_time: "2026-10-12T12:15:00+09:00", ghi_w_m2: null, ghi_clear_w_m2: 762, method: null },
+      ],
+    },
+  };
+  const points = ghiChartPoints(payload);
+  assert.deepEqual(points.map((p) => p.kind), ["observed", "observed", "forecast", "forecast", "forecast"]);
+  assert.equal(points[1].ghi, null, "missing stays null, not zero");
+
+  const forecastLines = ghiPointLines(points[2], 700);
+  assert.ok(forecastLines[0].includes("예측 (+5분)"));
+  assert.ok(forecastLines.includes("일사 690 W/m²"));
+  assert.ok(forecastLines.includes("차광 기준(700)까지 10"));
+  assert.ok(forecastLines.includes("맑은 날 기준 760 W/m²"));
+  assert.ok(forecastLines.includes("예측 방법: 모델 (XGBoost)"));
+  assert.ok(ghiPointLines(points[3], 700).includes("차광 기준(700) 이상 +12"));
+  assert.ok(ghiPointLines(points[0], 700)[0].includes("실측 (5분 평균)"));
+  assert.ok(ghiPointLines(points[4], 700).includes("예측값 없음"));
+
+  const rows = forecastTableRows(payload);
+  assert.deepEqual(rows.map((r) => [r.horizonMin, r.overThreshold, r.shadeOpen]), [[5, false, 100], [10, true, 0], [15, null, 0]],
+    "plan matched by timestamp even when the ISO text differs");
+});
+
+test("low sun is an expected forecast pause; crop reasons are words", async () => {
+  const { cropUnavailableText } = await import("../digital_twin/static/digital_twin/js/rec-common.mjs");
+  const live = { source: "field_collector", status: "live", receivedAt: 0 };
+  const lowSun = buildOpsStatus({ live, recommendation: recommendation({ status: "degraded", forecastStatus: "unavailable",
+    reason: "low_sun", statusReasons: ["forecast_unavailable"] }) });
+  assert.equal(lowSun.overall.level, "ok");
+  assert.equal(cropUnavailableText({ status: "unavailable", reason: "out_of_range:zenith_ge_85" }), "계산 불가 (해가 너무 낮음)");
+  assert.equal(cropUnavailableText({ status: "unavailable", reason: "model_error:ValueError" }), "계산 불가 (모델 오류)");
 });

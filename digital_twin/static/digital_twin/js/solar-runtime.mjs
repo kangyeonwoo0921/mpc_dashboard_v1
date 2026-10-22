@@ -31,6 +31,29 @@ export function physicsToThree([x, y, z]) {
  * cell has a value, otherwise the estimated direct beam (GHI separated by Engerer2)
  * where it was resolved, otherwise the binary sunlit map; the reference model shows PAR.
  */
+/**
+ * Share of the light that arrives as a direct beam (0..1) from the GHI separation (1 - diffuse fraction),
+ * or null when no measured/forecast GHI was used (clear-sky geometry view).
+ */
+export function beamShare(payload) {
+  if ((payload.solar?.altitude_deg ?? 0) <= 0) return 0;
+  const decomposition = payload.inputs?.weather?.decomposition;
+  if (!decomposition || decomposition.status !== "ok") return null;
+  if (typeof decomposition.kd !== "number") return (payload.inputs.weather.ghi_W_m2 ?? 0) > 0 ? null : 0;   // GHI = 0
+  return Math.min(1, Math.max(0, 1 - decomposition.kd));
+}
+
+// Display only (user decision 2026-10-22): full sun at or above this GHI, fading linearly to none at 0 W/m².
+export const SUN_FULL_GHI_W_M2 = 100;
+
+/** How sunny the 3D scene looks (0..1) from the measured / forecast GHI; null when no GHI was used (clear-sky view). */
+export function sunStrength(payload) {
+  if ((payload.solar?.altitude_deg ?? 0) <= 0) return 0;
+  const ghi = payload.inputs?.weather?.ghi_W_m2;
+  if (typeof ghi !== "number") return null;
+  return Math.min(1, Math.max(0, ghi / SUN_FULL_GHI_W_M2));
+}
+
 export function normalizeSolarPayload(payload) {
   if (payload.model === "radiation_v1") {
     const grid = payload.radiation.grid;
@@ -41,6 +64,8 @@ export function normalizeSolarPayload(payload) {
     return {
       timestamp: payload.timestamp,
       sun: { altitude_deg: payload.solar.altitude_deg, azimuth_deg: payload.solar.azimuth_deg, direction_threejs: payload.solar.direction_threejs },
+      beam: beamShare(payload),
+      strength: sunStrength(payload),
       sunPath: payload.solar.path_threejs,
       height: grid.height_m,
       grid: {
@@ -138,11 +163,12 @@ export class SolarRuntime {
     scene.add(this.light, this.light.target);
 
     this.sun = new THREE.Group();
-    const disc = new THREE.Mesh(new THREE.SphereGeometry(3.6, 24, 16), new THREE.MeshBasicMaterial({ color: 0xffd98a, fog: false }));
+    const disc = new THREE.Mesh(new THREE.SphereGeometry(3.6, 24, 16), new THREE.MeshBasicMaterial({ color: 0xffd98a, fog: false, transparent: true }));
     const map = typeof document === "undefined" ? null : glowTexture(); // headless tests have no canvas
     const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map, color: 0xffffff, transparent: true, depthWrite: false, fog: false }));
     glow.scale.set(36, 36, 1);
     this.sun.add(disc, glow);
+    this.sunMaterials = [disc.material, glow.material];
     this.sun.name = "SOLAR_SUN_MARKER";
     scene.add(this.sun);
 
@@ -207,7 +233,11 @@ export class SolarRuntime {
     this.light.position.copy(this.sun.position);
     this.light.target.position.set(0, 0, 0);
     const height = Math.max(0, Math.sin(THREE.MathUtils.degToRad(payload.sun.altitude_deg)));
-    this.light.intensity = 0.6 + 2.4 * Math.min(1, height * 1.4);
+    // Overcast / rain: little direct beam -> weak sun light, faint shadows, faint sun marker (null = clear-sky view).
+    const strength = payload.strength ?? 1;
+    this.light.intensity = (0.6 + 2.4 * Math.min(1, height * 1.4)) * strength;
+    this.light.shadow.intensity = strength;
+    for (const material of this.sunMaterials) material.opacity = 0.3 + 0.7 * strength;
     // Warmer, weaker light near the horizon.
     this.light.color.setHSL(0.1, 0.55 - 0.35 * Math.min(1, height * 1.5), 0.75);
     const points = (payload.sunPath ?? []).map((v) => new THREE.Vector3(...v).normalize().multiplyScalar(this.config.sunDistance));
@@ -225,7 +255,9 @@ export class SolarRuntime {
     this.sun.visible = on;
     this.light.visible = on;
     this.path.visible = this.sunEnabled && this.state !== null;
-    for (const { light, intensity } of this.dimmedLights) light.intensity = on ? intensity * 0.35 : intensity;
+    // Fill lights stand in for the sky: dimmed under a clear sun, kept up when the light is mostly diffuse.
+    const strength = this.state?.strength ?? 1;
+    for (const { light, intensity } of this.dimmedLights) light.intensity = on ? intensity * (0.35 + 0.65 * (1 - strength)) : intensity;
   }
 
   #updateLightMap(payload) {

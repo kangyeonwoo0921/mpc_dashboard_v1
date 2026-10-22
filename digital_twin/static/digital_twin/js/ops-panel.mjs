@@ -2,8 +2,9 @@
 // direct beam estimate, and a "next 60 min" preview that drives the sun / light map.
 // Data: GET /api/recommendation/screens/ (recommendation only; nothing is sent to the field).
 
+import { cueChange } from "./motion-runtime.mjs";
 import { buildOpsStatus, renderOpsStatus } from "./ops-status.mjs";
-import { SCREEN_COLOR, cropLightText, el, fmtTime, fmtW, moveText, nextChangeText, renderGhiChart } from "./rec-common.mjs";
+import { SCREEN_COLOR, cropLightText, cropUnavailableText, el, fmtTime, fmtW, moveText, renderGhiChart } from "./rec-common.mjs";
 
 export const OPS_ENDPOINT = "/api/recommendation/screens/";
 export const OPS_POLL_MS = 60_000;
@@ -72,7 +73,12 @@ export class OpsPanel {
 
   #renderNowGhi() {
     const node = this.root.querySelector("[data-ops-now]");
-    if (node) node.textContent = fmtW(this.#nowGhi());
+    if (!node) return;
+    const text = fmtW(this.#nowGhi());
+    if (node.textContent !== text) {
+      node.textContent = text;
+      cueChange(node);
+    }
   }
 
   /** Mark the active preview without emitting: 0 = live ("지금"), -1 = the day slider is in use. */
@@ -115,7 +121,7 @@ export class OpsPanel {
       el("div", { class: "ops-ghi" },
         el("div", {}, el("small", { text: "지금" }), el("b", { "data-ops-now": true, text: fmtW(this.#nowGhi()) }), el("span", { text: " W/m²" })),
         ...[15, 30, 60].map((m) => el("div", {}, el("small", { text: `+${m}분` }), el("b", { text: fmtW(at(m)) })))),
-      el("div", { class: "ops-chart", "data-ops-chart": true, role: "img", "aria-label": "최근 1시간 실측과 앞으로 1시간 예측" })));
+      el("div", { class: "ops-chart", "data-ops-chart": true })));
 
     const screens = el("section", { class: "ops-block" }, el("h3", { text: "스크린 추천" }));
     for (const [key, screen] of Object.entries(p.screens)) {
@@ -124,9 +130,7 @@ export class OpsPanel {
           el("i", { class: "ops-dot", style: `background:${SCREEN_COLOR[key]}` }),
           el("strong", { text: screen.label }),
           el("span", { class: `ops-action ${screen.action}`, text: screen.action_label })),
-        el("div", { class: "ops-line", text: moveText(screen) }),
-        el("div", { class: "ops-line muted", text: nextChangeText(screen, p.plan_times) }),
-        screen.reasons?.[0] ? el("div", { class: "ops-line muted small", text: screen.reasons[0] }) : null));
+        el("div", { class: "ops-line", text: moveText(screen) })));   // next change and reasons: 추천 상세
     }
     nodes.push(screens);
 
@@ -134,9 +138,7 @@ export class OpsPanel {
     const cropText = cropLightText(crop);
     nodes.push(el("section", { class: "ops-block" },
       el("h3", { text: "작물면 빛 (추정)" }),
-      el("div", { class: "ops-line", text: cropText ?? "계산 불가 (외부 일사 없음 또는 해가 낮음)" }),
-      cropText ? el("div", { class: "ops-line muted small",
-        text: `GHI를 Engerer2로 직달·산란 분리 · 산란광 미포함 · 측창·방풍벽 쪽 ${Math.round((1 - crop.resolved_fraction) * 100)}% 미계산` }) : null));
+      el("div", { class: "ops-line", text: cropText ?? cropUnavailableText(crop) })));   // method notes: 추천 상세
 
     nodes.push(el("section", { class: "ops-block" },
       el("h3", { text: "3D 미리보기 (태양·일조 지도)" }),
@@ -145,8 +147,15 @@ export class OpsPanel {
           text: m === 0 ? "지금" : `+${m}분` })))));
 
     nodes.push(el("a", { class: "ops-link", href: "/recommendation/", text: "추천 상세 · 설정 →" }));
+    const previous = body.querySelector("[data-ops-chart]")?.dataset ?? {};   // keep a pinned point across refreshes
+    const oldValues = [...body.querySelectorAll(".ops-ghi b")].map((b) => b.textContent);
     body.replaceChildren(...nodes);
-    renderGhiChart(body.querySelector("[data-ops-chart]"), p, { compact: true });
+    body.querySelectorAll(".ops-ghi b").forEach((b, i) => {
+      if (oldValues.length && i > 0 && oldValues[i] !== b.textContent) cueChange(b);   // forecast values changed
+    });
+    const chart = body.querySelector("[data-ops-chart]");
+    if (previous.pinned === "true") Object.assign(chart.dataset, { pinned: "true", selected: previous.selected });
+    renderGhiChart(chart, p, { compact: true });
     body.querySelectorAll("[data-preview]").forEach((button) => {
       button.addEventListener("click", () => {
         this.previewOffset = Number(button.dataset.preview);

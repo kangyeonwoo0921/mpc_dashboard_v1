@@ -5,8 +5,8 @@
 
 import { FORECAST_REASON, buildOpsStatus, renderOpsStatus } from "./ops-status.mjs";
 import {
-  MODE_LABEL, SCREEN_COLOR, STAGE_LABEL, STATE_LABEL, cropLightText, el, fmtPct, fmtTime, fmtW, nextChangeText,
-  renderGhiChart, renderPlanChart,
+  MODE_LABEL, SCREEN_COLOR, STAGE_LABEL, STATE_LABEL, cropLightText, cropUnavailableText, el, fmtPct, fmtTime, fmtW, forecastTableRows,
+  nextChangeText, renderGhiChart, renderPlanChart,
 } from "./rec-common.mjs";
 
 const API = {
@@ -70,9 +70,22 @@ function renderScreen(key, screen, times) {
   ].filter(Boolean));
 }
 
+function renderForecastTable(p) {
+  const rows = forecastTableRows(p);
+  const threshold = Number(p.settings.shade_threshold_w_m2);
+  $("fc-rows").replaceChildren(...(rows.length ? rows.map((r) => el("tr", { class: r.overThreshold ? "over" : null },
+    el("td", { text: fmtTime(r.time) }),
+    el("td", { text: `+${r.horizonMin}분` }),
+    el("td", { class: "num", text: r.ghi === null ? "—" : `${fmtW(r.ghi)} W/m²` }),
+    el("td", { class: "num", text: r.clear === null ? "—" : `${fmtW(r.clear)} W/m²` }),
+    el("td", { text: r.overThreshold === null ? "—" : r.overThreshold ? `이상 (≥ ${threshold})` : "미만" }),
+    el("td", { class: "num", text: r.shadeOpen === null ? "—" : `${fmtPct(r.shadeOpen)}%` }),
+  )) : [el("tr", {}, el("td", { colspan: "6", class: "muted", text: "예측값이 없습니다 (밤, 태양고도 20° 미만, 또는 예측 미연결)" }))]));
+}
+
 function renderCropLight(crop) {
   const text = cropLightText(crop);
-  $("crop-main").textContent = text ?? `계산 불가 (${crop?.reason === "no_ghi" ? "외부 일사 없음" : crop?.reason ?? "정보 없음"})`;
+  $("crop-main").textContent = text ?? cropUnavailableText(crop);
   const rows = [];
   if (crop && crop.status === "ok") {
     rows.push(["직달 일사 (DNI, 추정)", `${fmtW(crop.dni_W_m2)} W/m²`], ["산란 일사 (DHI, 추정)", `${fmtW(crop.dhi_W_m2)} W/m²`],
@@ -93,12 +106,12 @@ function renderRecommendation(p) {
   $("sum-sun").textContent = `${fmtTime(inp.sunrise)} · ${fmtTime(inp.sunset)}`;
   $("sum-tout").textContent = inp.outdoor_temperature_c === null ? "—" : `${inp.outdoor_temperature_c.toFixed(1)} °C`;
   $("sum-ghi").textContent = inp.solar_w_m2 === null ? "—" : `${Math.round(inp.solar_w_m2)} W/m²`;
-  $("guide-note").textContent = p.settings.growth_guide ? `참고: ${p.settings.growth_guide}` : "";
   for (const key of ["shade_screen", "diffuse_screen"]) renderScreen(key, p.screens[key], p.plan_times);
   renderGhiChart($("chart"), p);
+  renderForecastTable(p);
   renderPlanChart($("plan-chart"), p);
   const reason = inp.forecast_status === "ok" ? "" : ` 예측 없음: ${FORECAST_REASON[inp.forecast_reason] ?? inp.forecast_reason ?? inp.forecast_status}.`;
-  $("chart-note").textContent = `5분 평균 · 피복 위 외부 센서 기준.${reason}`;
+  $("chart-note").textContent = `5분 평균, 피복 위 외부 센서 기준.${reason}`;
   $("advisories").replaceChildren(...p.advisories.map((a) => el("li", { text: a })));
   renderCropLight(p.crop_light);
 }
@@ -154,9 +167,9 @@ function renderField(meta) {
   const isDefault = String(value) === String(meta.default);
   const resetBtn = el("button", { type: "button", class: "link-btn", text: "기본값", disabled: isDefault, title: `기본값: ${meta.default}` });
   const row = el("div", { class: "field", "data-key": meta.key },
-    el("label", { for: id, text: meta.label }, meta.provisional ? el("span", { class: "tag tag-prov", text: "잠정" }) : null),
+    el("label", { for: id, text: meta.label }),
     el("div", { class: "ctrl" }, input, meta.unit ? el("span", { class: "unit", text: meta.unit }) : null, resetBtn),
-    el("div", { class: "meta" }, el("span", { text: meta.help }), el("span", { class: "src", text: `출처: ${meta.source}` })));
+    el("div", { class: "meta" }, el("span", { text: meta.help })));
   const onChange = () => {
     const raw = input.value;
     const v = meta.kind === "number" ? (raw === "" ? raw : Number(raw)) : raw;

@@ -77,6 +77,16 @@ python -m venv .venv
 - 외부 상대습도·대기압은 현장 센서가 없어 응답에 없다.
 - `wind_direction_text`는 현장 원문 문자열(각도+방위).
 
+`status` (2026-10-20 추가, 현장 대시보드의 운전 상태. 없으면 각 값 `null`):
+
+| 필드 | 의미 |
+|---|---|
+| `operation_mode` | 운전 모드 문자열 (예 `자동`) |
+| `rain` | 감우 센서 (`true` = 비) |
+| `strong_wind` | 강풍 |
+| `alarm` / `caution` | 전체 경보 / 전체 주의 |
+| `alarm_count` | 알람 발생 횟수 (정수) |
+
 ### 3.2 `GET /api/digital-twin/radiation/v1/` — 태양·일조·일사 (레이트레이싱)
 
 파라미터 (모두 선택):
@@ -199,6 +209,9 @@ mpc_lab 실시간 실행기가 5분마다 만드는 외부 일사 예측. 값은
 `status`가 `ok`가 아니면 `horizons`는 `null`이다(오래된 예측을 현재 값처럼 보여주지 않음).
 `recent_observations`: 최근 60분 5분 평균 실측 일사 `[{time, ghi_w_m2, status}]` (그래프용, 정상 관측이 아니면 `null`).
 
+비 처리 (2026-10-20): 현장 감우 센서가 최근 60분 안에 한 번이라도 켜졌으면(이슬비에서 1~8분 간격으로 깜빡임) 모든 시간대가 지속 예측(예측 시점의 맑음 정도 × 목표 시각의
+맑은 날 일사)으로 바뀌고 `horizons[].method` = `persistence_rain`, 최상위 `rain` = `true`. 센서 값이 없거나 오래되면 `rain` = `null`(바꾸지 않음).
+
 ### 3.6 `GET /api/recommendation/screens/` — 스크린 제어 추천
 
 일사 예측 + 실시간 값 + 일출·일몰로 계산한 **추천**(장치 제어 안 함). 규칙: `markdown/screen_recommendation.md`.
@@ -238,7 +251,8 @@ mpc_lab 실시간 실행기가 5분마다 만드는 외부 일사 예측. 값은
 |---|---|---|
 | 천창 판 | `GH_VENT_S{01-04}_{01,02}_PIVOT` | local X축 회전. 각도 = 방향 × %/100 × `userData.max_open_angle_deg`(현재 ≈ 40.5°). `userData.side`: `positive_y`(+1) / `negative_y`(−1) |
 | 차광·산광 스크린 | `GH_{SHADE,DIFFUSE}_SCREEN_S{01-04}_{N,P}_PIVOT` | 동마다 양쪽 물받이(N = −Y, P = +Y)에서 한 장씩 나와 가운데서 만남. local **Z** 스케일 = 1 − %/100(최소 1e-6) |
-| 측창 커튼 | `asset_type: side_curtain` | 참고 구현 `actuator-runtime.mjs` 참고 |
+| 측창 좌·우 | `GH_SIDE_CURTAIN_{LEFT,RIGHT}` (`asset_type: side_curtain`) | 처마에서 위로 감김. 패널 local Y 스케일 = 1 − %/100, 하단 바 y = −`full_height` × 스케일. 0% = 하부 고정벽까지 닫힘 |
+| 측창 정면·후면, 수직커튼 4면 | `GH_SIDE_VENT_{FRONT,REAR}`, `GH_VERTICAL_CURTAIN_{FRONT,REAR,LEFT,RIGHT}` | **GLB에 없음.** 뷰어가 불러온 뒤 추가(`wall-curtains.mjs`, 화면 전용, 물리 계산 미반영). 같은 방식으로 위로 감김. 정면·후면은 끝벽의 방풍벽 쪽 절반에만, 수직커튼은 벽 안쪽 0.45 m. 위치·좌우 규칙 잠정 |
 | 센서 | `GH_SENSOR_*_ANCHOR` | 위치 표시용. 일사센서 `SOLAR_01`은 S01 뒤끝 피복 위(위치 잠정) |
 
 참고 구현: `digital_twin/static/digital_twin/js/`의 `actuator-runtime.mjs`(개도 적용), `scene-registry.mjs`(객체 탐색), `solar-runtime.mjs`(태양·그림자·일조 지도).

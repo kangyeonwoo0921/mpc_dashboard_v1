@@ -114,9 +114,9 @@ export class VisibilityRuntime {
       material.depthWrite = false;
     }
     if (flags.controlTarget) {
-      material.color?.lerp(new THREE.Color(0xa6c9c1), 0.12);
+      material.color?.lerp(new THREE.Color(0xa9c3e0), 0.12);
       if (material.emissive) {
-        material.emissive.set(0x173c35);
+        material.emissive.set(0x17304f);
         material.emissiveIntensity = 0.16;
       }
     }

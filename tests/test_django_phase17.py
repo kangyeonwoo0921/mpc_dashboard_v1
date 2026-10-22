@@ -28,7 +28,7 @@ class DigitalTwinDjangoTests(SimpleTestCase):
         self.assertNotIn("cdn.jsdelivr.net", text)
         self.assertIn("GLTFLoader", Path(finders.find("digital_twin/js/viewer.mjs")).read_text(encoding="utf-8"))
         self.assertIn("OrbitControls", Path(finders.find("digital_twin/js/viewer.mjs")).read_text(encoding="utf-8"))
-        self.assertIn("실시간 — 모의 데이터", text)
+        self.assertIn('id="context-panel"', text)
 
     def test_three_runtime_is_vendored_for_local_execution(self):
         for name in (

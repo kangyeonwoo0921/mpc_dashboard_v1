@@ -16,6 +16,7 @@ export function displayTitle(object, semanticType = null) {
       ? "재배 구역"
       : ASSET_LABELS[type] ?? ASSET_LABELS[metadata.asset_type] ?? titleCase(type) ?? object?.name ?? "객체";
   const span = Number(metadata.span_index);
+  if (metadata.wall_label) return `${base} — ${metadata.wall_label}`;
   return Number.isFinite(span) && span > 0 ? `${base} — ${span}동` : base;
 }
 

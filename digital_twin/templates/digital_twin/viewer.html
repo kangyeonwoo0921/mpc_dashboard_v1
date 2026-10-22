@@ -4,19 +4,20 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>온실 디지털 트윈</title>
+  <title>온실 운영 모니터</title>
+  <link rel="stylesheet" href="{{ css_typography_url }}">
+  <script>(() => { const f = new URLSearchParams(location.search).get("font"); if (f) document.documentElement.dataset.font = f; })();</script>
   <link rel="stylesheet" href="{{ css_viewer_url }}">
   <link rel="stylesheet" href="{{ css_live_panel_url }}">
   <link rel="stylesheet" href="{{ css_ops_url }}">
 </head>
 <body>
-  <main class="viewer-shell" id="digital-twin-viewer" data-model-url="{{ model_url }}">
+  <main class="viewer-shell" id="digital-twin-viewer" data-model-url="{{ model_url }}" data-long-axis-azimuth="{{ long_axis_azimuth }}">
     <canvas id="greenhouse-canvas" aria-label="온실 3D 모델"></canvas>
 
     <header class="viewer-header">
       <div class="viewer-brand">
-        <span class="viewer-mark" aria-hidden="true"></span>
-        <div><h1>온실 디지털 트윈</h1><p>실시간 3D · 일사 예측 · 스크린 추천</p></div>
+        <div><h1>온실 운영 모니터</h1><p>실시간 3D · 일사 예측 · 스크린 추천</p></div>
       </div>
       <div class="header-status">
         <div class="ops-status" id="ops-status" aria-label="시스템 상태" aria-live="polite"></div>
@@ -26,7 +27,9 @@
 
     <div class="viewer-message" id="viewer-message" role="status">온실 모델을 불러오는 중…</div>
 
-    <nav class="spatial-selector" aria-label="동 선택">
+    <button type="button" class="panel-collapse left-panels-toggle" id="left-panels-toggle" aria-expanded="true" aria-controls="spatial-selector ops-panel display-controls" aria-label="왼쪽 패널 숨기기">‹</button>
+
+    <nav class="spatial-selector" id="spatial-selector" aria-label="동 선택">
       <span>보기 범위</span>
       <div role="group" aria-label="동 선택">
         <button type="button" data-span-select="ALL" aria-pressed="true">전체</button>
@@ -47,7 +50,7 @@
 
     <div class="live-panel-position">{% include "digital_twin/_live_panel.html" %}</div>
 
-    <section class="display-controls" aria-label="화면 표시 설정">
+    <section class="display-controls" id="display-controls" aria-label="화면 표시 설정">
       <div class="display-control-group">
         <span>레이어</span>
         <label><input type="checkbox" data-layer="cover" checked><b>피복</b></label>
@@ -59,6 +62,11 @@
         <span>표시</span>
         <label><input type="checkbox" data-overlay="controlState"><b>제어 상태</b></label>
         <label><input type="checkbox" data-overlay="labels" checked><b>이름표</b></label>
+      </div>
+      <div class="display-control-group">
+        <span>바람</span>
+        <label><input type="checkbox" data-wind checked><b>창 환기</b></label>
+        <small class="wind-legend"><i class="wind-in"></i>들어옴<i class="wind-out"></i>나감</small>
       </div>
       <div class="display-control-group">
         <span>태양</span>
@@ -73,9 +81,11 @@
       <output class="solar-readout" data-solar-readout title="태양 위치는 계산값, 작물면 빛은 추정값입니다">—</output>
     </section>
 
-    <nav class="viewer-toolbar" aria-label="시점 이동">
+    <button type="button" class="panel-collapse toolbar-toggle" id="toolbar-toggle" aria-expanded="true" aria-controls="viewer-toolbar" aria-label="시점 도구 숨기기">▾</button>
+
+    <nav class="viewer-toolbar" id="viewer-toolbar" aria-label="시점 이동">
       <div class="view-presets" role="group" aria-label="시점">
-        <button type="button" data-view-preset="overview" aria-pressed="true">전체</button>
+        <button type="button" data-view-preset="overview" aria-pressed="true">전체(선택 초기화)</button>
         <button type="button" data-view-preset="front" aria-pressed="false">앞면</button>
         <button type="button" data-view-preset="rear" aria-pressed="false">뒷면</button>
         <button type="button" data-view-preset="roof" aria-pressed="false">지붕</button>
@@ -84,14 +94,15 @@
         <button type="button" data-view-preset="control" aria-pressed="false">제어 장치</button>
       </div>
       <div class="toolbar-actions">
-        <button type="button" id="reset-view">시점 초기화</button>
         <button type="button" id="fit-selected">선택 확대</button>
-        <button type="button" id="back-overview">전체 보기로</button>
         <button type="button" id="fullscreen-toggle">전체 화면</button>
         <button type="button" id="developer-toggle" aria-expanded="false">개발자</button>
       </div>
     </nav>
 
+    <div class="control-tags" id="control-tags" hidden>
+      <p class="control-tags-note">현장 값은 온실 전체 공통 · 천창과 스크린은 1동 위치에 표시</p>
+    </div>
     <div class="object-tooltip" id="object-tooltip" role="tooltip" hidden></div>
     <div class="selected-label" id="selected-label" hidden>
       <strong data-label-title>—</strong><span data-label-value>—</span>
@@ -134,6 +145,7 @@
   </main>
 
   <script type="importmap">{{ import_map|safe }}</script>
+  <script src="{{ motion_url }}"></script>
   <script type="module" src="{{ viewer_module_url }}"></script>
 </body>
 </html>

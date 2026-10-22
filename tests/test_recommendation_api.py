@@ -31,7 +31,7 @@ class SettingsStoreTests(unittest.TestCase):
     def test_defaults_match_user_decisions(self):
         values = settings_store.load()["values"]
         self.assertEqual((values["shade_threshold_w_m2"], values["persistence_min"], values["growth_stage"],
-                          values["operation_mode"]), (700, 15, "vegetative", "auto"))
+                          values["operation_mode"]), (600, 15, "vegetative", "auto"))
 
     def test_validation(self):
         bad = {"shade_threshold_w_m2": 1500, "persistence_min": 7, "growth_stage": "x", "transplant_date": "22/09",
@@ -39,7 +39,7 @@ class SettingsStoreTests(unittest.TestCase):
         with self.assertRaises(settings_store.SettingsError) as ctx:
             settings_store.save(bad)
         self.assertEqual(set(ctx.exception.errors), set(bad))
-        self.assertEqual(settings_store.load()["values"]["shade_threshold_w_m2"], 700)      # nothing stored
+        self.assertEqual(settings_store.load()["values"]["shade_threshold_w_m2"], 600)      # nothing stored
 
     def test_save_logs_only_changes_and_reset(self):
         now = datetime(2026, 10, 12, 10, 0, tzinfo=ZoneInfo("Asia/Seoul"))
@@ -47,11 +47,11 @@ class SettingsStoreTests(unittest.TestCase):
         state = settings_store.load()
         self.assertEqual((state["values"]["shade_threshold_w_m2"], state["updated_by"]), (650, "연우"))
         log = settings_store.history()
-        self.assertEqual(log[0]["changes"], {"shade_threshold_w_m2": {"from": 700, "to": 650}})
+        self.assertEqual(log[0]["changes"], {"shade_threshold_w_m2": {"from": 600, "to": 650}})
         settings_store.save({"shade_threshold_w_m2": 650})                                   # no change -> no log line
         self.assertEqual(len(settings_store.history()), 1)
         settings_store.reset()
-        self.assertEqual(settings_store.load()["values"]["shade_threshold_w_m2"], 700)
+        self.assertEqual(settings_store.load()["values"]["shade_threshold_w_m2"], 600)
         self.assertEqual(settings_store.history()[0]["note"], "기본값으로 되돌림")
 
     def test_corrupt_file_falls_back_to_defaults(self):

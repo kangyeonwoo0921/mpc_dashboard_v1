@@ -38,7 +38,7 @@ from ..provenance import Parameter, ProvenanceError, parse_parameters
 from ..solar.clearsky_index_pipeline import run_clearsky_index_pipeline
 from ..solar.clearsky_pipeline import run_clearsky_pipeline
 from .config import load_forecast_config
-from .operation import KC_FILE, OperationPaths, forecast_at, load_state, update
+from .operation import KC_FILE, OperationPaths, forecast_at, load_state, model_complete, update
 
 KST = timezone(timedelta(hours=9))
 SCHEMA_VERSION = "ghi-forecast/0.1"
@@ -95,14 +95,83 @@ def recent_observations(frame, issue, bins=12):
              "status": s} for t, v, s in zip(window.index, window.ghi, window.ghi_status)]
 
 
-def forecast_payload(config, table, now, paths, max_age_min):
+RAIN_KEY = "감우"   # rain sensor flag in the field dashboard status ("ON" / "OFF")
+
+
+RAIN_STATE_FILE = processed_dir() / "forecast_live" / "rain_state.json"
+
+
+def _read_rain(field_dir, now, max_age_min):
+    """(flag, collected_at) from the collector's latest.json; flag None when unknown or stale."""
+    if not field_dir:
+        return None, None
+    try:
+        record = json.loads((Path(field_dir) / "latest.json").read_text(encoding="utf-8"))
+        collected = pd.Timestamp(record["collected_at"])
+        if collected < pd.Timestamp(now) - pd.Timedelta(minutes=max_age_min):
+            return None, collected
+        value = ((record.get("response") or {}).get("status") or {}).get(RAIN_KEY)
+    except (OSError, ValueError, KeyError, TypeError):
+        return None, None
+    return {"ON": True, "OFF": False}.get(str(value).strip().upper()), collected
+
+
+def rain_now(field_dir, now, max_age_min):
+    """Field rain sensor state right now: True / False, None when unknown or stale."""
+    return _read_rain(field_dir, now, max_age_min)[0]
+
+
+def observe_rain(field_dir, now, max_age_min, state_file=RAIN_STATE_FILE):
+    """Sample the rain sensor; remember the last minute it was ON (survives restarts). Returns the sample."""
+    flag, collected = _read_rain(field_dir, now, max_age_min)
+    if flag:
+        try:
+            Path(state_file).parent.mkdir(parents=True, exist_ok=True)
+            Path(state_file).write_text(json.dumps({"last_on": collected.isoformat()}), encoding="utf-8")
+        except OSError:
+            pass
+    return flag
+
+
+def _last_on_from_raw(field_dir, now):
+    """Last minute with the rain sensor ON in today's collector raw log (seeds the memory after a restart;
+    the raw log reaches the sync folder less often than latest.json, so this may lag)."""
+    path = Path(field_dir) / "raw" / f"live_{pd.Timestamp(now).strftime('%Y-%m-%d')}.jsonl"
+    last = None
+    try:
+        with path.open(encoding="utf-8") as handle:
+            for line in handle:
+                if f'"{RAIN_KEY}": "ON"' not in line:
+                    continue
+                last = pd.Timestamp(json.loads(line)["collected_at"])
+    except (OSError, ValueError, KeyError):
+        return last
+    return last
+
+
+def rain_recent(field_dir, now, max_age_min, hold_min, state_file=RAIN_STATE_FILE):
+    """Rain counts as ongoing if the sensor is ON now or was ON within ``hold_min`` (the sensor flickers in
+    drizzle). False when OFF now and nothing recent; None when unknown and nothing recent."""
+    current = observe_rain(field_dir, now, max_age_min, state_file)
+    if current:
+        return True
+    try:
+        last_on = pd.Timestamp(json.loads(Path(state_file).read_text(encoding="utf-8"))["last_on"])
+    except (OSError, ValueError, KeyError, TypeError):
+        last_on = _last_on_from_raw(field_dir, now) if field_dir else None      # no memory yet (first run)
+    if last_on is not None and pd.Timestamp(now) - last_on <= pd.Timedelta(minutes=hold_min):
+        return True
+    return current
+
+
+def forecast_payload(config, table, now, paths, max_age_min, rain=None):
     """Forecast for the last complete bin, as the dashboard/MPC payload."""
     issue = last_complete_bin(now, int(config.value("time_step_min")))
     frame = table.set_index("timestamp")
     received = frame.index[frame.ghi_input_status.ne("missing")]
     newest = received.max() if len(received) else None
     base = {"issue_time": issue.isoformat(), "data_last_timestamp": None if newest is None or pd.isna(newest) else newest.isoformat(),
-            "recent_observations": recent_observations(frame, issue)}
+            "recent_observations": recent_observations(frame, issue), "rain": rain}
     if newest is None or pd.isna(newest) or newest < pd.Timestamp(now) - pd.Timedelta(minutes=max_age_min):
         return _payload(now, "unavailable", "data_stale", horizons=None, **base)
     if issue not in frame.index:
@@ -110,7 +179,7 @@ def forecast_payload(config, table, now, paths, max_age_min):
     status = frame.at[issue, "kc_input_status"]
     if status != "valid":
         return _payload(now, "unavailable", status, horizons=None, **base)
-    result = forecast_at(config, table, [issue], paths)
+    result = forecast_at(config, table, [issue], paths, rain=rain)
     state = load_state(paths)
     horizons = [{"h_steps": int(r.h_steps), "horizon_min": int(r.h_steps) * int(config.value("time_step_min")),
                  "target_time": pd.Timestamp(r.target_time).isoformat(), "method": r.method,
@@ -137,10 +206,17 @@ def run_cycle(now=None, field_dir=None, live_config=None, paths=None, latest_fil
         state = load_state(paths)
         interval = int(config.value("operation.retrain_interval_days"))
         last = state.get("last_update")
-        models_missing = any(not (paths.models / model_id).is_dir() for model_id in (state.get("active") or {}).values())
+        horizons = config.value("horizon_steps")
+        # an empty or half-written model folder (interrupted first run) counts as missing -> retrain
+        models_missing = any(not model_complete(paths.models, model_id, horizons)
+                             for model_id in (state.get("active") or {}).values())
         if last is None or models_missing or (now.date() - pd.Timestamp(last).date()).days >= interval:
             update(config, table, now.date(), paths, None if source is None else source["dataset_id"])
-        payload = forecast_payload(config, table, now, paths, float(live_config.value("max_data_age_min")))
+        max_age = float(live_config.value("max_data_age_min"))
+        hold = config.value("operation.rain_hold_min")
+        rain = (rain_recent(field_dir, now, max_age, float(hold)) if hold
+                else rain_now(field_dir, now, max_age))
+        payload = forecast_payload(config, table, now, paths, max_age, rain=rain)
         payload["field_data_dir_set"] = bool(field_dir)
     except Exception as error:                              # the loop must keep running
         payload = _payload(now, "error", f"{type(error).__name__}: {error}", horizons=None,
@@ -153,13 +229,20 @@ def loop(field_dir=None):
     live_config = load_live_config()
     minutes = int(live_config.value("cycle_minutes"))
     delay = float(live_config.value("cycle_delay_s"))
+    max_age = float(live_config.value("max_data_age_min"))
+    field = field_dir or live_config.value("field_data_dir")
     while True:
         now = time.time()
         period = minutes * 60
         next_run = (now // period + 1) * period + delay
-        time.sleep(max(0.0, next_run - now))
+        # sample the rain sensor every minute until the next cycle (it flickers between cycles)
+        while next_run - time.time() > 60:
+            observe_rain(field, pd.Timestamp.now(tz=KST), max_age)
+            time.sleep(60)
+        time.sleep(max(0.0, next_run - time.time()))
         payload = run_cycle(field_dir=field_dir, live_config=live_config)
-        print(payload["generated_at"], payload["status"], payload.get("reason") or "", flush=True)
+        print(payload["generated_at"], payload["status"], payload.get("reason") or "",
+              "rain" if payload.get("rain") else "", flush=True)
 
 
 def main(argv=None):

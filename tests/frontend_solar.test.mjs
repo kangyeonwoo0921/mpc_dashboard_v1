@@ -91,3 +91,23 @@ test("v1 payload: sunlit map until every cell has irradiance", async () => {
   assert.equal(irradiance.grid.mode, "irradiance");
   assert.deepEqual(irradiance.grid.values, [400, 200, null]);
 });
+
+test("overcast or rain: weak sun light and faint shadows from the direct-beam share", async () => {
+  const { beamShare } = await import("../digital_twin/static/digital_twin/js/solar-runtime.mjs");
+  const base = { solar: { altitude_deg: 25 }, inputs: { weather: { ghi_W_m2: 12, decomposition: { status: "ok", kd: 0.9992 } } } };
+  assert.ok(beamShare(base) < 0.01);
+  assert.equal(beamShare({ ...base, inputs: { weather: { ghi_W_m2: 600, decomposition: { status: "ok", kd: 0.25 } } } }), 0.75);
+  assert.equal(beamShare({ solar: { altitude_deg: 25 }, inputs: { weather: { ghi_W_m2: null } } }), null);   // clear-sky geometry view
+  assert.equal(beamShare({ solar: { altitude_deg: -3 }, inputs: {} }), 0);
+});
+
+test("sun strength follows GHI: full at 100 W/m² and above, fading below", async () => {
+  const { sunStrength } = await import("../digital_twin/static/digital_twin/js/solar-runtime.mjs");
+  const at = (ghi, altitude = 40) => ({ solar: { altitude_deg: altitude }, inputs: { weather: { ghi_W_m2: ghi } } });
+  assert.equal(sunStrength(at(560)), 1);
+  assert.equal(sunStrength(at(100)), 1);
+  assert.equal(sunStrength(at(70)), 0.7);
+  assert.equal(sunStrength(at(0)), 0);
+  assert.equal(sunStrength(at(300, -2)), 0);
+  assert.equal(sunStrength(at(null)), null);   // clear-sky geometry view
+});

@@ -117,6 +117,27 @@ export class CameraRuntime {
     return true;
   }
 
+  // "선택 확대": frame the selection tightly, and always end closer than the current view.
+  zoomInOn(bounds, {
+    margin = 1.05,
+    zoomFactor = 0.65,
+    now = globalThis.performance?.now() ?? Date.now(),
+  } = {}) {
+    if (!bounds || bounds.isEmpty()) return false;
+    const offset = this.camera.position.clone().sub(this.controls.target);
+    const currentDistance = offset.length();
+    const direction = currentDistance > 1e-6 ? offset.normalize() : new THREE.Vector3(...CAMERA_PRESETS.overview.direction).normalize();
+    const pose = calculateFitPose(bounds, this.camera, direction.toArray(), margin);
+    if (pose.distance >= currentDistance * 0.95) {
+      const distance = Math.max(this.controls.minDistance, currentDistance * zoomFactor);
+      pose.distance = distance;
+      pose.position = pose.target.clone().addScaledVector(direction, distance);
+    }
+    this.currentBounds = bounds.clone();
+    this.#transitionTo(pose, { immediate: false, now });
+    return true;
+  }
+
   #transitionTo(pose, { immediate, now }) {
     this.camera.near = Math.max(0.03, pose.distance / 2500);
     this.camera.far = Math.max(500, pose.distance * 12);

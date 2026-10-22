@@ -38,6 +38,8 @@ def _asset_urls():
         "css_viewer_url": versioned("digital_twin/css/viewer.css"),
         "css_live_panel_url": versioned("digital_twin/css/live-panel.css"),
         "css_ops_url": versioned("digital_twin/css/ops-status.css"),
+        "css_typography_url": versioned("digital_twin/css/typography.css"),
+        "motion_url": versioned("digital_twin/vendor/motion/motion.js"),
         "css_recommendation_url": versioned("digital_twin/css/recommendation.css"),
         "recommendation_module_url": versioned("digital_twin/js/recommendation.mjs"),
         "model_url": versioned("digital_twin/models/greenhouse.glb"),
@@ -46,8 +48,20 @@ def _asset_urls():
     }
 
 
+def _long_axis_azimuth():
+    """Greenhouse long-axis azimuth (config/physics/site.json) for the wind arrows; None when unavailable."""
+    try:
+        from physics.parameters import load_physics_config
+
+        return load_physics_config()[0].orientation.greenhouse_long_axis_azimuth_deg
+    except Exception:
+        return None
+
+
 def viewer(request):
-    response = render(request, "digital_twin/viewer.html", _asset_urls())
+    azimuth = _long_axis_azimuth()
+    context = {**_asset_urls(), "long_axis_azimuth": "" if azimuth is None else azimuth}
+    response = render(request, "digital_twin/viewer.html", context)
     response["Cache-Control"] = "no-cache"
     return response
 
@@ -129,6 +143,7 @@ def recommendation_settings_reset(request):
 def recommendation_page(request):
     urls = _asset_urls()
     context = {"css_url": urls["css_recommendation_url"], "css_ops_url": urls["css_ops_url"],
+               "css_typography_url": urls["css_typography_url"],
                "js_url": urls["recommendation_module_url"], "import_map": urls["import_map"]}
     response = render(request, "digital_twin/recommendation.html", context)
     response["Cache-Control"] = "no-store"

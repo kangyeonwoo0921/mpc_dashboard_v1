@@ -4,9 +4,12 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
 import { CameraRuntime } from "./camera-runtime.mjs";
 import { ContextPanelRuntime } from "./context-panel.mjs";
+import { ControlTags } from "./control-tags.mjs";
+import { addEnvironment, environmentEnabled } from "./environment-runtime.mjs";
 import { InteractionRuntime } from "./interaction-runtime.mjs";
-import { mappedAssetContext } from "./live-config.mjs";
+import { CHANNEL_LABELS, mappedAssetContext } from "./live-config.mjs";
 import { LabelRuntime } from "./label-runtime.mjs";
+import { initMotion } from "./motion-runtime.mjs";
 import { OpsPanel } from "./ops-panel.mjs";
 import { buildSceneRegistry } from "./scene-registry.mjs";
 import { SelectionRuntime } from "./selection-runtime.mjs";
@@ -14,6 +17,8 @@ import { SOLAR_CONFIG, SOLAR_ENDPOINTS, SolarRuntime } from "./solar-runtime.mjs
 import { createLiveViewerIntegration } from "./viewer-live-integration.mjs";
 import { CAMERA_PRESETS, SCENE_COLORS, VIEWER_UI_CONFIG } from "./viewer-config.mjs";
 import { VisibilityRuntime } from "./visibility-runtime.mjs";
+import { addWallCurtains } from "./wall-curtains.mjs";
+import { WindRuntime } from "./wind-runtime.mjs";
 
 const shell = document.getElementById("digital-twin-viewer");
 const canvas = document.getElementById("greenhouse-canvas");
@@ -43,14 +48,15 @@ controls.dampingFactor = 0.07;
 controls.screenSpacePanning = true;
 controls.maxPolarAngle = Math.PI * 0.495;
 
-scene.add(new THREE.HemisphereLight(0xd8e4e6, 0x344149, 1.55));
+const hemisphereLight = new THREE.HemisphereLight(0xd8e2ee, 0x3d3328, 1.55);
+scene.add(hemisphereLight);
 const roofKeyLight = new THREE.DirectionalLight(0xfff0d8, 3.1);
 roofKeyLight.position.set(-18, 58, 36);
 scene.add(roofKeyLight);
 const sideFillLight = new THREE.DirectionalLight(0xa9c8d6, 1.0);
 sideFillLight.position.set(42, 21, -38);
 scene.add(sideFillLight);
-const roofEdgeLight = new THREE.DirectionalLight(0xc7e2dc, 0.72);
+const roofEdgeLight = new THREE.DirectionalLight(0xdcc8b0, 0.72);
 roofEdgeLight.position.set(8, 34, -42);
 scene.add(roofEdgeLight);
 
@@ -66,6 +72,9 @@ let cameraRuntime = null;
 let visibilityRuntime = null;
 let interactionRuntime = null;
 let labelRuntime = null;
+let controlTags = null;
+let windRuntime = null;
+let environment = null;
 let contextPanel = null;
 let solarRuntime = null;
 let solarTimer = null;
@@ -91,7 +100,12 @@ function renderSolarReadout(payload, error = null) {
     : "해가 진 뒤";
   const { sunlitFraction, mean, directMean, ghi } = payload.summary;
   const parts = [solarPreview ? solarPreview.label : time, sun];
-  if (sunlitFraction !== null && sunlitFraction !== undefined && payload.sun.altitude_deg > 0) parts.push(`일조 ${(sunlitFraction * 100).toFixed(0)}%`);
+  if (typeof payload.beam === "number" && payload.sun.altitude_deg > 0) {
+    parts.push(payload.beam < 0.1 ? "흐림 · 직달광 거의 없음" : `직달광 비율 ${(payload.beam * 100).toFixed(0)}%`);
+  }
+  if (sunlitFraction !== null && sunlitFraction !== undefined && payload.sun.altitude_deg > 0 && (payload.beam ?? 1) >= 0.1) {
+    parts.push(`일조 ${(sunlitFraction * 100).toFixed(0)}%`);
+  }
   if (mean !== null && mean !== undefined) parts.push(`작물면 평균 ${mean.toFixed(0)} ${payload.summary.unit}`);
   else if (payload.grid.mode === "direct" && directMean !== null) parts.push(`직달광 평균 ${directMean.toFixed(0)} W/m² (추정·산란 제외)`);
   else if (payload.sun.altitude_deg > 0 && (ghi === null || ghi === undefined)) parts.push("일사 입력 없음 → 일조 여부만 표시");
@@ -162,6 +176,9 @@ function setDevField(name, value) {
 function resize() {
   const width = Math.max(shell.clientWidth, 1);
   const height = Math.max(shell.clientHeight, 1);
+  // Overlay UI stays 1:1 in the page and enlarges in fullscreen (900px-high reference, max 1.5x).
+  const uiScale = document.fullscreenElement && width > 720 ? Math.min(Math.max(Math.min(height / 900, width / 1500), 1), 1.5) : 1;
+  shell.style.setProperty("--ui-scale", uiScale.toFixed(3));
   renderer.setSize(width, height, false);
   camera.aspect = width / height;
   camera.updateProjectionMatrix();
@@ -257,7 +274,8 @@ function activatePreset(name, { immediate = false } = {}) {
   if (!preset || !cameraRuntime || !visibilityRuntime) return;
   interactionRuntime?.resetHighlights();
   visibilityRuntime.applyPreset(preset.visibility);
-  visibilityRuntime.setOverlay("controlState", name === "control");
+  // "제어 장치" turns the control state on and the overview resets it; other views keep what the user chose.
+  if (name === "control" || name === "overview") visibilityRuntime.setOverlay("controlState", name === "control");
   const bounds = selectionRuntime.state.level === "greenhouse" ? null : selectedBounds();
   cameraRuntime.goTo(name, { bounds, immediate });
   interactionRuntime?.refreshHighlights();
@@ -266,12 +284,11 @@ function activatePreset(name, { immediate = false } = {}) {
 }
 
 function renderMappingStatus(status) {
-  const labels = { roofVentLeft: "RoofVent_L", roofVentRight: "RoofVent_R", shadeScreen1: "ShadeScreen_01", shadeScreen2: "ShadeScreen_02" };
   mappingStatusRoot.replaceChildren();
   for (const [key, result] of Object.entries(status)) {
     const item = document.createElement("span");
     item.className = result.provisional ? "mapping-warning" : "";
-    item.textContent = `${labels[key]} ${result.found}/${result.expected}${result.provisional ? " · provisional" : ""}`;
+    item.textContent = `${CHANNEL_LABELS[key] ?? key} ${result.found}/${result.expected}${result.provisional ? " · provisional" : ""}`;
     mappingStatusRoot.append(item);
   }
 }
@@ -279,10 +296,13 @@ function renderMappingStatus(status) {
 function syncLiveChrome(state) {
   const status = state.connectionStatus();
   const updated = state.lastReceivedAt === null ? "—" : new Date(state.lastReceivedAt).toLocaleTimeString("en-GB", { hour12: false });
-  opsPanel.setLive({ source: state.source, status, receivedAt: state.lastReceivedAt, ghi: state.environment?.solar_w_m2 ?? null });
+  opsPanel.setLive({ source: state.source, status, receivedAt: state.lastReceivedAt, ghi: state.environment?.solar_w_m2 ?? null,
+    alarm: state.status?.alarm === true });
   setDevField("source", state.source ?? "—");
   setDevField("connection", status.toUpperCase());
   setDevField("lastSuccess", updated);
+  controlTags?.setActuators(state.actuators);
+  windRuntime?.setLive(state.environment, state.actuators);
   renderContext();
   updateSelectionLabel();
   interactionRuntime?.refreshTooltip();
@@ -323,7 +343,20 @@ function bindInterface() {
     });
   });
   shell.querySelectorAll("[data-view-preset]").forEach((button) => {
-    button.addEventListener("click", () => activatePreset(button.dataset.viewPreset));
+    button.addEventListener("click", () => {
+      // "전체(선택 초기화)" also clears the span/asset selection and restores the default layers and
+      // overlays (what the former "전체 보기로" did) before framing the whole greenhouse.
+      if (button.dataset.viewPreset === "overview") {
+        selectionRuntime.selectGreenhouse();
+        interactionRuntime?.resetHighlights();
+        interactionRuntime?.clearHover();
+        visibilityRuntime?.restoreDefault();
+        visibilityRuntime?.setOverlay("labels", true);
+        interactionRuntime?.setLabelsEnabled(true);
+        labelRuntime?.setEnabled(true);
+      }
+      activatePreset(button.dataset.viewPreset);
+    });
   });
   shell.querySelectorAll("[data-layer]").forEach((input) => {
     input.addEventListener("change", () => visibilityRuntime?.setLayer(input.dataset.layer, input.checked));
@@ -342,21 +375,8 @@ function bindInterface() {
       }
     });
   });
-  document.getElementById("reset-view").addEventListener("click", () => {
-    const bounds = selectionRuntime.state.level === "greenhouse" ? null : selectedBounds();
-    cameraRuntime?.goTo("overview", { bounds });
-    setActivePreset("overview");
-  });
-  document.getElementById("fit-selected").addEventListener("click", () => cameraRuntime?.fitSelected(selectedBounds(), { margin: 1.25 }));
-  document.getElementById("back-overview").addEventListener("click", () => {
-    selectionRuntime.selectGreenhouse();
-    interactionRuntime?.resetHighlights();
-    visibilityRuntime?.restoreDefault();
-    interactionRuntime?.clearHover();
-    syncLayerControls();
-    cameraRuntime?.goTo("overview");
-    setActivePreset("overview");
-  });
+  shell.querySelector("[data-wind]")?.addEventListener("change", (event) => windRuntime?.setEnabled(event.currentTarget.checked));
+  document.getElementById("fit-selected").addEventListener("click", () => cameraRuntime?.zoomInOn(selectedBounds()));
   shell.querySelectorAll("[data-solar]").forEach((input) => {
     input.addEventListener("change", () => {
       if (input.dataset.solar === "sun") solarRuntime?.setSunEnabled(input.checked);
@@ -382,6 +402,18 @@ function bindInterface() {
     event.currentTarget.textContent = collapsed ? "+" : "−";
     event.currentTarget.setAttribute("aria-label", collapsed ? "운영 요약 펼치기" : "운영 요약 접기");
   });
+  document.getElementById("left-panels-toggle")?.addEventListener("click", (event) => {
+    const hidden = shell.dataset.leftPanels !== "hidden";
+    shell.dataset.leftPanels = hidden ? "hidden" : "shown";
+    event.currentTarget.setAttribute("aria-expanded", String(!hidden));
+    event.currentTarget.setAttribute("aria-label", hidden ? "왼쪽 패널 보이기" : "왼쪽 패널 숨기기");
+  });
+  document.getElementById("toolbar-toggle")?.addEventListener("click", (event) => {
+    const hidden = shell.dataset.toolbar !== "hidden";
+    shell.dataset.toolbar = hidden ? "hidden" : "shown";
+    event.currentTarget.setAttribute("aria-expanded", String(!hidden));
+    event.currentTarget.setAttribute("aria-label", hidden ? "시점 도구 보이기" : "시점 도구 숨기기");
+  });
   developerToggle.addEventListener("click", () => setDeveloperOpen(developerDrawer.getAttribute("aria-hidden") === "true"));
   document.getElementById("developer-close").addEventListener("click", () => setDeveloperOpen(false));
   document.getElementById("fullscreen-toggle").addEventListener("click", async () => {
@@ -396,19 +428,36 @@ function bindInterface() {
 
 resize();
 bindInterface();
+initMotion(shell);
 opsPanel.start();
 window.addEventListener("resize", resize);
+new ResizeObserver(() => resize()).observe(shell);
+document.addEventListener("fullscreenchange", resize);
 
 const loader = new GLTFLoader();
 loader.load(
   shell.dataset.modelUrl,
   (gltf) => {
     try {
+      addWallCurtains(gltf.scene);   // 측창 정면/후면 and 수직커튼 4면 (not in the GLB; display only)
       sceneRegistry = buildSceneRegistry(gltf.scene);
       scene.add(gltf.scene);
+      // sky + ground + time of day (trial); ?env=0 = before
+      if (environmentEnabled()) environment = addEnvironment({ scene, model: gltf.scene, hemisphere: hemisphereLight, renderer });
       visibilityRuntime = new VisibilityRuntime(sceneRegistry);
       cameraRuntime = new CameraRuntime({ camera, controls, registry: sceneRegistry, onPresetChange: (name) => setActivePreset(name) });
       labelRuntime = new LabelRuntime({ root: selectedLabelRoot, camera, domElement: renderer.domElement });
+      controlTags = new ControlTags({
+        root: document.getElementById("control-tags"), camera, domElement: renderer.domElement,
+        onSelect(name) {
+          const entry = sceneRegistry.getAsset(name);
+          if (entry) selectionRuntime.selectAsset(entry);
+        },
+      });
+      controlTags.bind(gltf.scene);
+      const azimuth = Number.parseFloat(shell.dataset.longAxisAzimuth);
+      windRuntime = new WindRuntime({ scene, model: gltf.scene, longAxisAzimuthDeg: Number.isFinite(azimuth) ? azimuth : Number.NaN });
+      windRuntime.setEnabled(shell.querySelector("[data-wind]")?.checked ?? true);
       contextPanel = new ContextPanelRuntime(contextRoot, {
         onNavigate(item) {
           if (item.level === "greenhouse") selectionRuntime.selectGreenhouse();
@@ -469,6 +518,10 @@ renderer.setAnimationLoop((timeMs) => {
   cameraRuntime?.update(timeMs);
   controls.update();
   labelRuntime?.update();
+  controlTags?.setEnabled(visibilityRuntime?.overlayState.controlState);
+  controlTags?.update();
+  windRuntime?.tick(deltaSeconds);
   solarRuntime?.tick(timeMs);
+  environment?.setSunAltitude(solarRuntime?.state?.sun?.altitude_deg);
   renderer.render(scene, camera);
 });

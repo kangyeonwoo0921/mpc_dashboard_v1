@@ -59,8 +59,9 @@ test("Greenhouse to span to asset to breadcrumb parent has one selection state",
 test("context uses house environment, real mapping, no sensor readings or fake history", () => {
   const base = { liveState: live, now: 1500 };
   const house = buildContextModel({...base,selection:{level:"greenhouse"}});
-  assert.ok(!JSON.stringify(house.sections).includes("천창"));
-  assert.ok(JSON.stringify(house).includes("미설정"));
+  assert.deepEqual(house.sections.map((x) => x.title), ["실내", "장치 (%)"]);   // no outdoor/status data in this snapshot
+  assert.ok(house.sections[1].rows.some((r) => r.label === "천창" && r.value === "좌 72 · 우 35 %"));
+  assert.ok(!JSON.stringify(house.sections).includes("시스템"));          // system state lives in the header status bar
   const span = buildContextModel({...base,selection:{level:"span",spanId:"S02"},spanAssets:registry.spanRegistry.S02.assets});
   assert.ok(JSON.stringify(span).includes("온실 전체 센서 1개 · 동별 값이 아닙니다"));
   assert.equal(span.sections[0].rows[0].value, "72.0%");
@@ -180,4 +181,26 @@ test("selected label follows the moving object between snapshots without a scene
   label.update();
   assert.notEqual(root.style.transform,before);
   assert.equal(traversals,1);
+});
+
+test("greenhouse panel shows faulty sensors as a state and adds outdoor, devices and field status", () => {
+  const state = new LiveState();
+  state.acceptSnapshot({ source: "field_collector", connected: true,
+    environment: { indoor_temperature_c: 19.1, setpoint_temperature_c: 18, indoor_rh_pct: 99.9, dew_point_c: 19.1, vpd_kpa: 0.003,
+      co2_ppm: 0, outdoor_temperature_c: 15.3, wind_speed_m_s: 0.3, wind_direction_text: "112° 동남동" },
+    actuators: { roof_vent_left_pct: 30, roof_vent_right_pct: 30, shade_screen_1_pct: 100, shade_screen_2_pct: 100, boiler_on: false },
+    status: { operation_mode: "자동", rain: true, strong_wind: false, alarm: false, caution: false, alarm_count: 0 } }, 1000);
+  const model = buildContextModel({ liveState: state, now: 1500, selection: { level: "greenhouse" } });
+  const rows = Object.fromEntries(model.sections.flatMap((x) => x.rows.map((r) => [r.label, r])));
+  assert.deepEqual(model.sections.map((x) => x.title), ["실내", "외부", "장치 (%)", "운전 상태"]);
+  assert.equal(rows["온도"].value, "19.1 °C");
+  assert.equal(rows["온도"].note, "설정 18.0 °C");
+  assert.equal(rows["습도"].value, "센서 점검 필요");                         // 99.9 % stuck: no number, no dew point / VPD
+  assert.ok(!("CO₂" in rows));                                              // 0 ppm = no sensor
+  assert.equal(rows["바람"].note, "112° 동남동");
+  assert.equal(rows["비"].value, "비 옴");
+  assert.equal(rows["보일러"].value, "꺼짐");
+  assert.ok(!("순환팬" in rows));                                            // no value -> not shown
+  assert.equal(rows["운전 모드"].value, "자동");
+  assert.equal(rows["경보"].value, "없음");
 });

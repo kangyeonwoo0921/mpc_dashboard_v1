@@ -12,7 +12,8 @@ Shade screen (차광커튼2, aluminium 70 %), priority order:
         no change within ``min_hold`` min of the last recommended change
     otherwise                               retracted (100 %), light preservation
 Diffuse screen (차광커튼1, 10 %): deployed (0 %) inside its night window when T_out < threshold and the
-mode is not ``hot``; otherwise retracted. Missing T_out -> no recommendation.
+mode is not ``hot``; once deployed it stays until T_out >= threshold + release band (no flip-flop while T_out
+hovers at the threshold); otherwise retracted. Missing T_out -> no recommendation.
 
 GHI is the outside sensor reading (it reads low near noon and high at low sun); the threshold is applied on
 that scale. The engine never actuates anything.
@@ -177,7 +178,7 @@ def shade_rule(t, s, live, safety, series, measured_mean, prev_target, held_unti
     return 100.0, "DAY_VENTILATION", reasons + ["차광 불필요 (빛 보존)"]
 
 
-def diffuse_rule(t, s, live, safety, is_now):
+def diffuse_rule(t, s, live, safety, is_now, prev_target=None):
     current = live.get("actuators", {}).get("shade_screen_1_pct")
     if is_now and (safety.get("rain") or safety.get("strong_wind")):
         what = "감우" if safety.get("rain") else "강풍"
@@ -191,8 +192,11 @@ def diffuse_rule(t, s, live, safety, is_now):
     if t_out is None:
         return None, "NO_DATA", [f"산광 보온 시간 {_hm(start)}–{_hm(end)}, 외기 온도 없음 → 판단 불가"]
     limit = float(s["diffuse_tout_threshold_c"])
+    release = limit + float(s["diffuse_tout_release_band_c"])
     if t_out < limit:
         return 0.0, "NIGHT_INSULATION", [f"산광 보온 시간 {_hm(start)}–{_hm(end)}, 외기 {t_out:.1f} °C < {limit:g} °C → 펼침"]
+    if prev_target is not None and prev_target <= MOVE_TOLERANCE and t_out < release:
+        return 0.0, "NIGHT_INSULATION", [f"산광 보온 시간 {_hm(start)}–{_hm(end)}, 펼친 상태: 외기 {t_out:.1f} °C가 {release:g} °C 미만 → 유지"]
     return 100.0, "NIGHT_OPEN", [f"산광 보온 시간이지만 외기 {t_out:.1f} °C ≥ {limit:g} °C → 걷음"]
 
 
@@ -223,7 +227,11 @@ def recommend(inp: Inputs) -> tuple[dict, dict]:
     held_until = datetime.fromisoformat(state["shade_held_until"]) if state.get("shade_held_until") else None
 
     shade_target, shade_state, shade_reasons = shade_rule(issue, s, live, inp.safety, series, measured, prev, held_until, True)
-    diffuse_target, diffuse_state, diffuse_reasons = diffuse_rule(issue, s, live, inp.safety, True)
+    # previous diffuse recommendation; before the first one, the screen's actual position
+    prev_diffuse = state.get("diffuse_target", live.get("actuators", {}).get("shade_screen_1_pct"))
+    diffuse_target, diffuse_state, diffuse_reasons = diffuse_rule(issue, s, live, inp.safety, True, prev_diffuse)
+    if diffuse_target is not None:
+        state["diffuse_target"] = diffuse_target
 
     if shade_target is not None and (prev is None or abs(shade_target - prev) > MOVE_TOLERANCE):
         state["shade_target"] = shade_target
@@ -234,13 +242,15 @@ def recommend(inp: Inputs) -> tuple[dict, dict]:
     plan_times, plan_shade, plan_diffuse = [], [], []
     p_target = state.get("shade_target")
     p_hold = datetime.fromisoformat(state["shade_held_until"]) if state.get("shade_held_until") else None
+    p_diffuse = diffuse_target
     for k in range(13):
         t = issue + STEP * k
         if k == 0:
             st, dt_ = shade_target, diffuse_target
         else:
             st, _, _ = shade_rule(t, s, live, inp.safety, series, None, p_target, p_hold, False)
-            dt_, _, _ = diffuse_rule(t, s, live, inp.safety, False)
+            dt_, _, _ = diffuse_rule(t, s, live, inp.safety, False, p_diffuse)
+            p_diffuse = dt_ if dt_ is not None else p_diffuse
             if st is not None and p_target is not None and abs(st - p_target) > MOVE_TOLERANCE:
                 p_hold = t + timedelta(minutes=int(s["min_hold_min"]))
             p_target = st if st is not None else p_target
@@ -257,7 +267,7 @@ def recommend(inp: Inputs) -> tuple[dict, dict]:
         reasons.append("forecast_" + ((inp.forecast or {}).get("status") or "missing"))
     status = "ok" if not reasons else "degraded"
 
-    advisories = ["일사 값은 피복 위 외부 센서 기준입니다. 한낮에는 실제보다 낮게, 해가 낮을 때는 높게 읽습니다."]
+    advisories = []                     # the sensor basis note is shown once, under the GHI chart
     rh = env.get("indoor_rh_pct")
     if rh is not None and rh >= 99.0:
         advisories.append("실내 습도 센서 점검 필요 (99% 이상 고정): 습도 관련 규칙은 꺼져 있습니다.")

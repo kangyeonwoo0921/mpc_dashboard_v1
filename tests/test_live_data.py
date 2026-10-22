@@ -75,5 +75,16 @@ class GrowlinkAdapterTests(unittest.TestCase):
             self.assertNotIn(raw_key, source_text)
 
 
+
+class StatusBlockTests(unittest.TestCase):
+    def test_status_block_is_normalized(self):
+        from live_data.adapter import normalize_status_block
+        raw = {"status": {"운전모드": "자동", "감우": "ON", "강풍": "OFF", "전체경보": "OFF", "전체주의": "OFF", "알람 발생횟수": "0개"}}
+        self.assertEqual(normalize_status_block(raw), {"operation_mode": "자동", "rain": True, "strong_wind": False,
+                                                       "alarm": False, "caution": False, "alarm_count": 0})
+        self.assertEqual(normalize_status_block({}), {k: None for k in ("operation_mode", "rain", "strong_wind",
+                                                                         "alarm", "caution", "alarm_count")})
+
+
 if __name__ == "__main__":
     unittest.main()

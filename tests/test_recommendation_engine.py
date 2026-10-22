@@ -25,7 +25,7 @@ def forecast(issue, values, recent=None, status="ok"):
 
 
 def run(now, live_dto, fc, settings=None, state=None, safety=None):
-    s = {**settings_store.DEFAULTS, **(settings or {})}
+    s = {**settings_store.DEFAULTS, "shade_threshold_w_m2": 700, **(settings or {})}   # rule tests use T = 700
     inp = engine.Inputs(now=now, live=live_dto, safety=safety or {"rain": None, "strong_wind": None},
                         forecast=fc, settings=s, state=state or {})
     return engine.recommend(inp)
@@ -123,6 +123,21 @@ class DiffuseTests(unittest.TestCase):
         self.assertEqual(warm["screens"]["diffuse_screen"]["recommended_open_percent"], 100.0)
         unknown, _ = run(NIGHT, live(t_out=None), None)
         self.assertEqual(unknown["screens"]["diffuse_screen"]["action"], "unavailable")
+
+    def test_release_band_stops_flip_flop_at_the_threshold(self):
+        # 15.0 / 14.9 °C alternating (field, 2026-10-22 evening): once deployed it stays until 16 °C
+        state = {}
+        targets = []
+        for t_out in (14.9, 15.0, 14.9, 15.0, 15.5, 16.0):
+            payload, state = run(NIGHT, live(t_out=t_out), None, state=state)
+            targets.append(payload["screens"]["diffuse_screen"]["recommended_open_percent"])
+        self.assertEqual(targets, [0.0, 0.0, 0.0, 0.0, 0.0, 100.0])
+        # not deployed before: 15.5 °C is not cold enough to deploy
+        warm, _ = run(NIGHT, live(t_out=15.5, shade1=100.0), None, state={"diffuse_target": 100.0})
+        self.assertEqual(warm["screens"]["diffuse_screen"]["recommended_open_percent"], 100.0)
+        # first run with no state follows the screen's actual position
+        held, _ = run(NIGHT, live(t_out=15.5, shade1=0.0), None)
+        self.assertEqual(held["screens"]["diffuse_screen"]["recommended_open_percent"], 0.0)
 
     def test_day_retracted_and_rh_advisory(self):
         payload, _ = run(NOON, live(rh=99.9), forecast(ISSUE, [600.0] * 12))

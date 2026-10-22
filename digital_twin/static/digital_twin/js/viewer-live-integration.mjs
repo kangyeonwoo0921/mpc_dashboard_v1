@@ -1,5 +1,5 @@
 import { ActuatorRuntime } from "./actuator-runtime.mjs";
-import { LIVE_CONFIG } from "./live-config.mjs";
+import { ALL_OBJECT_MAP, LIVE_CONFIG } from "./live-config.mjs";
 import { LivePollingClient } from "./live-client.mjs";
 import { updateLivePanel } from "./live-panel.mjs";
 import { LiveState } from "./live-state.mjs";
@@ -12,7 +12,7 @@ export function createLiveViewerIntegration({
   onStateChange = () => {},
 } = {}) {
   const state = new LiveState({ staleAfterMs: LIVE_CONFIG.staleAfterMs });
-  const actuators = new ActuatorRuntime({ warn });
+  const actuators = new ActuatorRuntime({ objectMap: ALL_OBJECT_MAP, warn });
   const mappingStatus = actuators.bindScene(scene, {
     registry: sceneRegistry?.controlRegistry,
     byName: sceneRegistry?.byName,

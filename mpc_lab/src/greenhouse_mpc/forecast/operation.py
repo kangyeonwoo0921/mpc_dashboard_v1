@@ -169,6 +169,12 @@ def _sanity(config, meta):
     return problems
 
 
+def model_complete(models_dir, model_id, horizons):
+    """True when training finished: meta.json (written last) and every horizon file exist."""
+    folder = Path(models_dir) / model_id
+    return (folder / "meta.json").is_file() and all((folder / f"h{h:02d}.json").is_file() for h in horizons)
+
+
 def _load_models(models_dir, model_id, horizons):
     models = {}
     for h in horizons:
@@ -272,8 +278,15 @@ def update(config, table, as_of, paths, kc_dataset_id=None):
 
 # ---------------------------------------------------------------- forecast
 
-def forecast_at(config, table, issue_times, paths, clearsky_config=None, log=True):
-    """Forecasts for the given issue bins (labelled by bin start; issued when the bin closes)."""
+RAIN_METHOD = "persistence_rain"
+
+
+def forecast_at(config, table, issue_times, paths, clearsky_config=None, log=True, rain=None):
+    """Forecasts for the given issue bins (labelled by bin start; issued when the bin closes).
+
+    ``rain``: field rain sensor state per issue bin (bool, or one value for all; None = unknown). With
+    ``operation.rain_override`` = persistence, bins with rain use smart persistence for every horizon
+    (method ``persistence_rain``). The persistence forecast is always logged (``kc_hat_persistence``)."""
     state = load_state(paths)
     if not state.get("last_update"):
         raise RuntimeError("no operational state: run update first")
@@ -282,6 +295,9 @@ def forecast_at(config, table, issue_times, paths, clearsky_config=None, log=Tru
     reference = config.value("operation.reference")
     stats = state["reference_statistics"]
     issue_times = pd.DatetimeIndex(issue_times)
+    rain_flags = np.zeros(len(issue_times), bool)
+    if rain is not None and config.value("operation.rain_override") == "persistence":
+        rain_flags = np.broadcast_to(np.asarray(rain, dtype=object), (len(issue_times),)) == True  # noqa: E712 (None -> no rain)
     history = table[table.timestamp <= issue_times.max()].reset_index(drop=True)
     models = {name: _load_models(paths.models, model_id, horizons) for name, model_id in state["active"].items()}
 
@@ -304,12 +320,13 @@ def forecast_at(config, table, issue_times, paths, clearsky_config=None, log=Tru
         for name, per_h in models.items():
             predicted = per_h[h].predict(frame[features]).astype(float)
             out[f"kc_hat_{name}"] = np.where(usable, predicted, np.nan)
+        out["kc_hat_persistence"] = np.where(usable, kc_now, np.nan)
         method = state["policy"][str(h)]["method"]
-        out["method"] = method
-        out["kc_hat"] = out[f"kc_hat_{method}"]
+        out["method"] = np.where(rain_flags, RAIN_METHOD, method)
+        out["kc_hat"] = np.where(rain_flags, out.kc_hat_persistence, out[f"kc_hat_{method}"])
         for column in [c for c in out.columns if c.startswith("kc_hat")]:
             out[column.replace("kc_hat", "ghi_hat")] = out[column] * out.ghi_clear
-        out["model_id"] = state["active"].get(method)
+        out["model_id"] = np.where(rain_flags, None, state["active"].get(method))
         rows.append(out)
     result = pd.concat(rows, ignore_index=True)
     result["policy_update"] = state["last_update"]

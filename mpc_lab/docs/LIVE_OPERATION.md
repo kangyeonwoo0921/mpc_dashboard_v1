@@ -45,6 +45,19 @@ The scripts set the variables for their own process only. Defaults: `C:\Greenhou
 `-SharedDir`, `-PythonExe`. If the active model files are not in this machine's data folder (first run on a
 new machine), the cycle retrains them.
 
+### Checking live forecasts against observations
+
+```powershell
+# mpc_lab folder; read-only report from the live forecast log (forecast_live/forecasts.parquet)
+powershell -ExecutionPolicy Bypass -File .\scripts\evaluate_live_forecast.ps1            # all days
+powershell -ExecutionPolicy Bypass -File .\scripts\evaluate_live_forecast.ps1 -Days 7    # last 7 days
+powershell -ExecutionPolicy Bypass -File .\scripts\evaluate_live_forecast.ps1 -Csv C:	emp\pairs.csv
+```
+
+Per horizon: samples, days, observed mean, RMSE of the used forecast / xgb / CC / smart persistence, MAE and
+bias of the used forecast, RMSE skill of the used forecast vs persistence and vs CC. Observed = sensor 5-min
+mean where kc is valid (sun >= 20 deg), as in the weekly gate. Code: `src/greenhouse_mpc/forecast/live_eval.py`.
+
 ### Auto-start on the lab PC (optional, not registered yet)
 
 Starts the loop at logon, never twice, restarts after a failure. Run once in PowerShell (project path

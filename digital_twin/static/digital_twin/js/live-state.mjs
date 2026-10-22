@@ -30,6 +30,8 @@ const ACTUATOR_KEYS = Object.freeze([
   "exhaust_fan_on",
 ]);
 
+const STATUS_KEYS = Object.freeze(["operation_mode", "rain", "strong_wind", "alarm", "caution", "alarm_count"]);
+
 function emptyRecord(keys) {
   return Object.fromEntries(keys.map((key) => [key, null]));
 }
@@ -57,6 +59,7 @@ export class LiveState {
     this.lastReceivedAt = null;
     this.environment = emptyRecord(ENVIRONMENT_KEYS);
     this.actuators = emptyRecord(ACTUATOR_KEYS);
+    this.status = emptyRecord(STATUS_KEYS);
     this.lastError = null;
   }
 
@@ -71,6 +74,7 @@ export class LiveState {
     this.lastReceivedAt = receivedAt;
     this.environment = { ...emptyRecord(ENVIRONMENT_KEYS), ...snapshot.environment };
     this.actuators = { ...emptyRecord(ACTUATOR_KEYS), ...snapshot.actuators };
+    this.status = { ...emptyRecord(STATUS_KEYS), ...(snapshot.status && typeof snapshot.status === "object" ? snapshot.status : {}) };
     this.lastError = null;
   }
 
